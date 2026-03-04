@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-main: 255 255 255;
+    --color-bg-surface: 244 244 245; /* zinc-100 */
+    --color-bg-elevate: 228 228 231; /* zinc-200 */
+    --color-text-primary: 24 24 27; /* zinc-950 */
+    --color-text-secondary: 113 113 122; /* zinc-500 */
+    --color-border: 0 0 0;
+  }
+
+  .dark {
+    --color-bg-main: 15 15 15;
+    --color-bg-surface: 26 26 26;
+    --color-bg-elevate: 39 39 42;
+    --color-text-primary: 255 255 255;
+    --color-text-secondary: 161 161 170; /* zinc-400 */
+    --color-border: 255 255 255;
+  }
+
+  body {
+    @apply bg-bg-main text-text-primary font-sans antialiased;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 dark:bg-zinc-800 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400 dark:bg-zinc-700;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-bg-main/70 backdrop-blur-xl border border-border;
+  }
+  
+  .glass-light {
+    @apply bg-white/70 backdrop-blur-xl border border-black/[0.05];
+  }
+
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover text-white font-medium px-4 py-2 rounded-md transition-colors;
+  }
+
+  .btn-ghost {
+    @apply text-text-secondary hover:text-text-primary hover:bg-bg-surface px-4 py-2 rounded-md transition-colors;
+  }
+}
+
+/* Animations */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

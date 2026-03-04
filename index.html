@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- 浏览器层面优化：预连接 API 服务器 -->
+    <link rel="preconnect" href="/api" />
+    <link rel="dns-prefetch" href="/api" />
+    
+    <!-- 提示浏览器预加载关键资源 -->
+    <link rel="preload" href="/api/covers" as="fetch" crossorigin="anonymous" />
+    
+    <title>ZHIYIN</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
