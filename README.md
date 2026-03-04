@@ -45,6 +45,8 @@
 
 > **本项目仅包含前端代码。** 要完整体验 ZHIYIN，你需要先部署后端服务。
 
+后端 github 地址（包含 docker 示例和配置文件示例）：[**github/zhiyin**](https://github.com/qwex888/zhiyin)
+
 后端 Docker 镜像：[**qwex333/zhiyin**](https://hub.docker.com/r/qwex333/zhiyin)
 
 ```bash
