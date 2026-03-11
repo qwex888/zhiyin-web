@@ -1,59 +1,61 @@
 <div align="center">
   <img src="src/assets/logo.svg" alt="ZHIYIN Logo" width="128" />
   <h1>ZHIYIN · 知音</h1>
-  <p>自部署 NAS 音乐流媒体 Web 客户端</p>
+  <p>Self-hosted NAS music streaming web client</p>
 
   ![Vue](https://img.shields.io/badge/Vue_3-4FC08D?logo=vuedotjs&logoColor=white)
   ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
   ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
   ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+
+  [简体中文](./README_CN.md) | English
 </div>
 
 ---
 
-## 简介
+## Introduction
 
-**ZHIYIN（知音）** 是一个面向 NAS 用户的音乐流媒体前端应用，提供现代化的 Web 界面来管理和播放你的个人音乐库。
+**ZHIYIN (知音)** is a music streaming frontend application designed for NAS users, providing a modern web interface to manage and play your personal music library.
 
-### 主要功能
+### Features
 
-- 🎵 在线串流播放，支持多种音质（128k / 192k / 320k / FLAC / 原始）
-- 📝 歌词同步显示，支持双语歌词
-- 🎨 亮色 / 暗色主题切换
-- 🌐 中文 / English 双语界面
-- 📱 响应式设计，适配桌面与移动端
-- 🔍 音乐库扫描与管理
-- 📊 播放统计与数据可视化
-- 🎯 智能推荐
+- 🎵 Online streaming with multiple quality options (128k / 192k / 320k / FLAC / Original)
+- 📝 Synchronized lyrics display with bilingual support
+- 🎨 Light / Dark theme switching
+- 🌐 Chinese / English bilingual interface
+- 📱 Responsive design for desktop and mobile
+- 🔍 Music library scanning & management
+- 📊 Playback statistics & data visualization
+- 🎯 Smart recommendations
 
-### 技术栈
+### Tech Stack
 
-| 技术 | 用途 |
-|------|------|
-| Vue 3 + Composition API | 前端框架 |
-| TypeScript | 类型安全 |
-| Tailwind CSS | 样式 |
-| Pinia | 状态管理 |
-| Vue Router | 路由 |
-| Vue I18n | 国际化 |
-| Howler.js | 音频播放 |
-| Vite | 构建工具 |
+| Technology | Purpose |
+|------------|---------|
+| Vue 3 + Composition API | Frontend framework |
+| TypeScript | Type safety |
+| Tailwind CSS | Styling |
+| Pinia | State management |
+| Vue Router | Routing |
+| Vue I18n | Internationalization |
+| Howler.js | Audio playback |
+| Vite | Build tool |
 
 ---
 
-## 后端部署
+## Backend Deployment
 
-> **本项目仅包含前端代码。** 要完整体验 ZHIYIN，你需要先部署后端服务。
+> **This repository contains frontend code only.** To fully experience ZHIYIN, you need to deploy the backend service first.
 
-后端 github 地址（包含 docker 示例和配置文件示例）：[**github/zhiyin**](https://github.com/qwex888/zhiyin)
+Backend GitHub repository (includes Docker examples and config samples): [**github/zhiyin**](https://github.com/qwex888/zhiyin)
 
-后端 Docker 镜像：[**qwex333/zhiyin**](https://hub.docker.com/r/qwex333/zhiyin)
+Backend Docker image: [**qwex333/zhiyin**](https://hub.docker.com/r/qwex333/zhiyin)
 
 ```bash
 docker pull qwex333/zhiyin:latest
 ```
 
-使用 Docker Compose 快速启动（示例）：
+Quick start with Docker Compose (example):
 
 ```yaml
 version: '3.8'
@@ -67,39 +69,44 @@ services:
       - "8080:8080"
     
     volumes:
-      # 音乐目录（只读）- 请修改为你的实际路径，如需更多路径，先在这里挂载目录，然后在 config.toml 中添加 docker路径
-      # 示例：- /vol1/1000/Music:/music:ro
+      # Music directory (read-only) - change to your actual path
+      # For additional paths, mount them here first, then add the docker path in config.toml
+      # Example: - /vol1/1000/Music:/music:ro
       - ./music:/music:ro
       
-      # 数据库目录（持久化）
+      # Database directory (persistent)
       - ./data:/data
 
-      # 配置文件
-      # 首次使用：cp config.toml.example config.toml
-      # 然后修改 config.toml 中的配置
+      # Config file
+      # First time: cp config.toml.example config.toml
+      # Then edit config.toml
       - ./config.toml:/app/config.toml:ro
       
-      # 封面缓存目录(可选， 如果想手动管理封面)
+      # Cover cache directory (optional, for manual cover management)
       # - ./covers:/covers
       
       
-      # Web 前端（可选，将前端构建产物挂载到容器）
+      # Web frontend (optional, mount frontend build output to container)
       # - ./web:/app/web:ro
     
     environment:
-      # 日志级别
+      # Log level
       - RUST_LOG=info
       
-      # 初始管理员（仅首次启动时生效，创建后可删除）
+      # Initial admin (only takes effect on first startup, can be removed after creation)
       # - MUSIC_ADMIN_USER=admin
       # - MUSIC_ADMIN_PASSWORD=your_secure_password
       
-      # 注意：其他配置项请在 config.toml 中修改
+      # Note: other settings should be configured in config.toml
+
+    # Memory limit (including file page cache), prevents excessive memory usage on low-memory hosts
+    # 256m works for most cases; use 192m for very low memory hosts, 512m for better cache performance
+    # mem_limit: 256m
     
     restart: unless-stopped
     
-    # 健康检查（镜像中未安装 curl/wget，使用内置二进制的 HTTP 自检）
-    # 如安装了 wget 可替换为: test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+    # Health check (curl/wget not installed in image, uses built-in binary HTTP self-check)
+    # If wget is available: test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
     healthcheck:
       test: ["CMD", "zhiyin", "--health-check"]
       interval: 30s
@@ -114,55 +121,55 @@ networks:
   music-network:
     driver: bridge
 
-# 使用说明：
-# 1. 复制配置文件：cp config.toml.example config.toml
-# 2. 修改 config.toml 中的配置：
-#    - 音乐扫描目录（roots）
-#    - 数据库路径（path）
-#    - 其他可选配置
-# 3. 修改 volumes 中的音乐目录路径（./music 改为你的实际路径）
-# 4. 运行: docker-compose up -d
-# 5. 查看日志: docker-compose logs -f
-# 6. 停止服务: docker-compose down
-# 7. 访问 API: http://localhost:8080/api/songs
-# 8. 访问文档: http://localhost:8080/swagger-ui
+# Usage:
+# 1. Copy config: cp config.toml.example config.toml
+# 2. Edit config.toml:
+#    - Music scan directories (roots)
+#    - Database path (path)
+#    - Other optional settings
+# 3. Update music directory path in volumes (change ./music to your actual path)
+# 4. Start: docker-compose up -d
+# 5. View logs: docker-compose logs -f
+# 6. Stop: docker-compose down
+# 7. Access API: http://localhost:8080/api/songs
+# 8. Access docs: http://localhost:8080/swagger-ui
 #
-# 配置热重载（无需重启）：
+# Hot reload config (no restart needed):
 #   docker-compose kill -s SIGHUP zhiyin
 
 
 ```
 
-后端服务默认监听 `8080` 端口，前端开发时通过 Vite 代理将 `/api` 请求转发到后端。
+The backend listens on port `8080` by default. During frontend development, Vite proxies `/api` requests to the backend.
 
 ---
 
-## 本地开发
+## Local Development
 
-### 前置条件
+### Prerequisites
 
 - Node.js >= 18
 - pnpm / npm / yarn
 
-### 安装与启动
+### Install & Run
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动开发服务器（默认端口 7321）
+# Start dev server (default port 7321)
 npm run dev
 
-# 构建生产版本
+# Build for production
 npm run build
 
-# 运行测试
+# Run tests
 npm test
 ```
 
-### 开发代理配置
+### Dev Proxy Configuration
 
-开发模式下，API 请求会代理到后端服务。修改 `vite.config.ts` 中的 `proxy.target` 指向你的后端地址：
+In development mode, API requests are proxied to the backend service. Update `proxy.target` in `vite.config.ts` to point to your backend:
 
 ```ts
 proxy: {
@@ -175,6 +182,20 @@ proxy: {
 
 ---
 
-## 许可证
+## Sponsor & Support
+
+ZHIYIN is an open-source project, free to use. If you find it helpful, you can support the development by:
+
+- ⭐ Starring the project
+- 🐛 Submitting Issues or PRs
+- ☕ Buying the author a coffee
+
+<div align="center">
+  <img src="docs/donate/alipay.jpg" alt="Alipay" width="200" />
+</div>
+
+---
+
+## License
 
 MIT
