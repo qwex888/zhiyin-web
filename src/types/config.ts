@@ -38,8 +38,31 @@ export interface ScanConfig {
 }
 
 export interface ServerConfig {
+  drop_cache_after_stream: boolean;
   host: string;
   port: number;
+}
+
+export interface SubsonicConfig {
+  enabled: boolean;
+}
+
+export interface WebConfig {
+  enabled: boolean;
+  path: string;
+}
+
+export interface SecurityConfig {
+  token_expiry_hours: number;
+  cors_origins: string[];
+  login_rate_limit: number;
+  login_rate_window_secs: number;
+  stream_token_ttl_secs?: number;
+}
+
+export interface LoggingConfig {
+  level: string;
+  modules: string[];
 }
 
 export interface TranscodeConfig {
@@ -52,16 +75,24 @@ export interface TranscodeConfig {
 
 export interface SystemConfig {
   database: DatabaseConfig & ConfigItem<DatabaseConfig>;
+  logging: LoggingConfig & ConfigItem<LoggingConfig>;
   maintenance: MaintenanceConfig & ConfigItem<MaintenanceConfig>;
   recommend: RecommendConfig & ConfigItem<RecommendConfig>;
   scan: ScanConfig & ConfigItem<ScanConfig>;
+  security: SecurityConfig & ConfigItem<SecurityConfig>;
   server: ServerConfig & ConfigItem<ServerConfig>;
+  subsonic: SubsonicConfig & ConfigItem<SubsonicConfig>;
   transcode: TranscodeConfig & ConfigItem<TranscodeConfig>;
+  web: WebConfig & ConfigItem<WebConfig>;
 }
 
 export interface UpdateConfigParams {
+  logging?: Partial<LoggingConfig>;
   maintenance?: Partial<MaintenanceConfig>;
   recommend?: Partial<RecommendConfig>;
   scan?: Partial<ScanConfig>;
+  security?: Partial<SecurityConfig>;
+  subsonic?: Partial<SubsonicConfig>;
   transcode?: Partial<TranscodeConfig>;
+  web?: Partial<WebConfig>;
 }

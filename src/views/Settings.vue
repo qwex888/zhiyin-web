@@ -54,6 +54,10 @@ const lastScanTime = computed(() => {
 
 // Form state
 const formState = reactive({
+  logging: {
+    level: 'info',
+    modules: [] as string[]
+  },
   maintenance: {
     enabled: false,
     enable_vacuum: false,
@@ -74,32 +78,56 @@ const formState = reactive({
     roots: [] as string[],
     skip_small_files: true
   },
+  security: {
+    token_expiry_hours: 168,
+    cors_origins: [] as string[],
+    login_rate_limit: 10,
+    login_rate_window_secs: 300,
+    stream_token_ttl_secs: 60
+  },
+  subsonic: {
+    enabled: true
+  },
   transcode: {
     cache_strategy: 'smart',
     cache_threshold: 0,
     enabled: false,
     max_concurrent_transcodes: 0
+  },
+  web: {
+    enabled: true
   }
 });
+
+const corsOriginsInput = ref('');
+const loggingModulesInput = ref('');
 
 const savedFormSnapshot = ref('');
 
 const takeFormSnapshot = () => {
   savedFormSnapshot.value = JSON.stringify({
+    logging: formState.logging,
     maintenance: formState.maintenance,
     recommend: formState.recommend,
     scan: formState.scan,
+    security: formState.security,
+    subsonic: formState.subsonic,
     transcode: formState.transcode,
+    web: formState.web,
   });
 };
 
 const hasConfigChanged = computed(() => {
   if (!savedFormSnapshot.value) return false;
   const current = JSON.stringify({
+    logging: formState.logging,
     maintenance: formState.maintenance,
     recommend: formState.recommend,
     scan: formState.scan,
+    security: formState.security,
+    subsonic: formState.subsonic,
     transcode: formState.transcode,
+    web: formState.web,
   });
   return current !== savedFormSnapshot.value;
 });
@@ -148,10 +176,17 @@ const fetchConfig = async () => {
     
     // Initialize form state
     if (data) {
+      Object.assign(formState.logging, data.logging);
       Object.assign(formState.maintenance, data.maintenance);
       Object.assign(formState.recommend, data.recommend);
       Object.assign(formState.scan, data.scan);
+      Object.assign(formState.security, data.security);
+      Object.assign(formState.subsonic, data.subsonic);
       Object.assign(formState.transcode, data.transcode);
+      Object.assign(formState.web, data.web);
+
+      corsOriginsInput.value = (data.security?.cors_origins || []).join(', ');
+      loggingModulesInput.value = (data.logging?.modules || []).join(', ');
       takeFormSnapshot();
     }
   } catch (e) {
@@ -166,10 +201,26 @@ const saveConfig = async () => {
   isSaving.value = true;
   try {
     const updateParams: UpdateConfigParams = {
+      logging: {
+        ...formState.logging,
+        modules: loggingModulesInput.value
+          .split(',')
+          .map(v => v.trim())
+          .filter(Boolean)
+      },
       maintenance: formState.maintenance,
       recommend: formState.recommend,
       scan: formState.scan,
-      transcode: formState.transcode
+      security: {
+        ...formState.security,
+        cors_origins: corsOriginsInput.value
+          .split(',')
+          .map(v => v.trim())
+          .filter(Boolean)
+      },
+      subsonic: formState.subsonic,
+      transcode: formState.transcode,
+      web: formState.web
     };
     
     await systemApi.updateConfig(updateParams);
@@ -812,6 +863,105 @@ onUnmounted(() => {
                   step="0.1"
                   class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
                 />
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Settings -->
+          <div class="bg-bg-surface rounded-2xl border border-border overflow-hidden shadow-sm p-6 space-y-4 md:col-span-2">
+            <h4 class="font-medium text-text-primary flex items-center gap-2">
+              <Shield class="w-4 h-4 text-text-secondary" />
+              高级配置（特色）
+            </h4>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <label class="text-text-primary">启用 Subsonic API</label>
+                  <input
+                    v-model="formState.subsonic.enabled"
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <label class="text-text-primary">启用内置 Web 前端</label>
+                  <input
+                    v-model="formState.web.enabled"
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">JWT 过期小时数</label>
+                  <input
+                    v-model.number="formState.security.token_expiry_hours"
+                    type="number"
+                    min="1"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">登录限流次数（窗口内）</label>
+                  <input
+                    v-model.number="formState.security.login_rate_limit"
+                    type="number"
+                    min="0"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">登录限流窗口（秒）</label>
+                  <input
+                    v-model.number="formState.security.login_rate_window_secs"
+                    type="number"
+                    min="1"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">流媒体 Token TTL（秒）</label>
+                  <input
+                    v-model.number="formState.security.stream_token_ttl_secs"
+                    type="number"
+                    min="1"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">CORS 允许来源（逗号分隔）</label>
+                  <input
+                    v-model="corsOriginsInput"
+                    type="text"
+                    placeholder="https://music.example.com, http://localhost:5173"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">日志级别</label>
+                  <select
+                    v-model="formState.logging.level"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  >
+                    <option value="trace">trace</option>
+                    <option value="debug">debug</option>
+                    <option value="info">info</option>
+                    <option value="warn">warn</option>
+                    <option value="error">error</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-text-secondary text-xs mb-1">模块日志（逗号分隔）</label>
+                  <input
+                    v-model="loggingModulesInput"
+                    type="text"
+                    placeholder="zhiyin=debug, axum=info"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  />
+                </div>
               </div>
             </div>
           </div>
