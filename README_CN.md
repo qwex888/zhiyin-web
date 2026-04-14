@@ -27,6 +27,8 @@
 - 🔍 音乐库扫描与管理
 - 📊 播放统计与数据可视化
 - 🎯 智能推荐
+- 🏷️ 多源元数据刮削（网易云、QQ音乐、酷狗、酷我、咪咕、AcoustID），支持歌词预览与批量操作
+- 📂 文件整理 — 根据刮削的元数据自动重命名和归档音乐文件
 
 ### 技术栈
 
@@ -62,42 +64,51 @@ version: '3.8'
 
 services:
   zhiyin:
-    image: qwex333/zhiyin:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhiyin:latest
     container_name: zhiyin
     
     ports:
       - "8080:8080"
     
     volumes:
-      # 音乐目录（只读）- 请修改为你的实际路径，如需更多路径，先在这里挂载目录，然后在 config.toml 中添加 docker路径
-      # 示例：- /vol1/1000/Music:/music:ro
+      # 音乐目录（只读）- 请修改为你的实际路径
+      # 默认配置会自动扫描 /music，无需再手动配置 config.toml
       - ./music:/music:ro
       
       # 数据库目录（持久化）
       - ./data:/data
-
-      # 配置文件
-      # 首次使用：cp config.toml.example config.toml
-      # 然后修改 config.toml 中的配置
-      - ./config.toml:/app/config.toml:ro
       
       # 封面缓存目录(可选， 如果想手动管理封面)
-      # - ./covers:/covers
+      - ./covers:/covers
       
       
-      # Web 前端（可选，将前端构建产物挂载到容器）
-      # - ./web:/app/web:ro
+      # Web 前端已内置于镜像中（/app/web）
+      # 如需使用自定义前端，可取消注释覆盖：
+      # - ./web/dist:/app/web:ro
+      
+      # 配置文件（可选，高级自定义时再启用）
+      # - ./config.toml:/app/config.toml:ro
     
     environment:
       # 日志级别
       - RUST_LOG=info
+      # Subsonic 密码加密 Pepper（可选）
+      # 不设置时服务会自动生成并持久化到 /data/.zhiyin/key_pepper
+      # 设置后优先使用该值（适合多实例统一密钥）
+      # 生成方式: openssl rand -hex 32
+      # - MUSIC_KEY_PEPPER=your-random-hex-secret-here
+      # 如需自定义托管文件路径（可选）：
+      # - MUSIC_KEY_PEPPER_FILE=/data/.zhiyin/key_pepper
       
       # 初始管理员（仅首次启动时生效，创建后可删除）
       # - MUSIC_ADMIN_USER=admin
       # - MUSIC_ADMIN_PASSWORD=your_secure_password
       
-      # 注意：其他配置项请在 config.toml 中修改
-
+      # 如需覆盖默认配置，可通过 MUSIC_* 环境变量或挂载 config.toml
+    
     # 内存限制（含文件页缓存），防止在小内存主机上占用过多内存
     # 256m 适合大多数场景；极低内存主机可设为 192m，追求缓存加速可设为 512m
     # mem_limit: 256m
@@ -120,22 +131,17 @@ networks:
   music-network:
     driver: bridge
 
-# 使用说明：
-# 1. 复制配置文件：cp config.toml.example config.toml
-# 2. 修改 config.toml 中的配置：
-#    - 音乐扫描目录（roots）
-#    - 数据库路径（path）
-#    - 其他可选配置
-# 3. 修改 volumes 中的音乐目录路径（./music 改为你的实际路径）
-# 4. 运行: docker-compose up -d
-# 5. 查看日志: docker-compose logs -f
-# 6. 停止服务: docker-compose down
-# 7. 访问 API: http://localhost:8080/api/songs
-# 8. 访问文档: http://localhost:8080/swagger-ui
+# 使用说明（零配置默认）：
+# 1. 修改 volumes 中的音乐目录路径（./music 改为你的实际路径）
+# 2. 运行: docker-compose up -d
+# 3. 查看日志: docker-compose logs -f
+# 4. 停止服务: docker-compose down
+# 5. 访问 API: http://localhost:8080/api/songs
+# 6. 访问文档: http://localhost:8080/swagger-ui
+# 7. 如需高级自定义：挂载 config.toml 或设置 MUSIC_* 环境变量
 #
 # 配置热重载（无需重启）：
 #   docker-compose kill -s SIGHUP zhiyin
-
 
 ```
 
