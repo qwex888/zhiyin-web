@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut } from 'lucide-vue-next';
+import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
@@ -30,6 +30,8 @@ const menuItems = computed(() => [
   { name: t('nav.artists'), path: '/artists', icon: Mic2 },
   { name: t('nav.history'), path: '/history', icon: History },
   { name: t('nav.stats'), path: '/stats', icon: BarChart2 },
+  { name: t('nav.scrape'), path: '/scrape', icon: Search },
+  { name: t('nav.organize'), path: '/organize', icon: FolderTree },
 ]);
 </script>
 

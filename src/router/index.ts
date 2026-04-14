@@ -46,6 +46,16 @@ const router = createRouter({
       component: () => import('@/views/Stats.vue'),
     },
     {
+      path: '/scrape',
+      name: 'Scrape',
+      component: () => import('@/views/Scrape.vue'),
+    },
+    {
+      path: '/organize',
+      name: 'Organize',
+      component: () => import('@/views/Organize.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       redirect: '/',

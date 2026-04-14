@@ -5,10 +5,15 @@ import type { Song, RecentSong } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { Calendar } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import { scrapeApi } from '@/api/scrape';
+import { useToast } from '@/composables/useToast';
 import VirtualSongList from '@/components/common/VirtualSongList.vue';
 
 const playerStore = usePlayerStore();
 const { t } = useI18n();
+const router = useRouter();
+const toast = useToast();
 const songs = ref<RecentSong[]>([]);
 const isLoading = ref(false);
 const hasError = ref(false);
@@ -29,6 +34,29 @@ const fetchHistory = async () => {
 
 const playSong = (song: Song) => {
   playerStore.play(song);
+};
+
+const handleMenuAction = async (action: string, song: Song) => {
+  switch (action) {
+    case 'play':
+      playerStore.play(song);
+      break;
+    case 'addToQueue':
+      playerStore.addToQueue(song);
+      toast.success(t('common.add_to_queue'));
+      break;
+    case 'scrape':
+      try {
+        await scrapeApi.batchCreate([song.id]);
+        toast.success(t('scrape.batch_created', { count: 1 }));
+        router.push('/scrape');
+      } catch {
+        toast.error(t('common.error'));
+      }
+      break;
+    case 'viewDetails':
+      break;
+  }
 };
 
 onMounted(() => {
@@ -54,6 +82,7 @@ onMounted(() => {
         :show-played-at="true"
         @play="playSong"
         @retry="fetchHistory"
+        @menu-action="handleMenuAction"
       />
     </div>
   </div>

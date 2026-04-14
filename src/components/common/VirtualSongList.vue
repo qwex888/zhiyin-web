@@ -1,13 +1,26 @@
 <script setup lang="ts">
-import { toRefs } from 'vue';
-import { useVirtualList, useInfiniteScroll } from '@vueuse/core';
+import { ref, toRefs, type Component } from 'vue';
+import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
-import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox } from 'lucide-vue-next';
+import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info } from 'lucide-vue-next';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import CoverImage from '@/components/common/CoverImage.vue';
+
+export interface MenuAction {
+  key: string;
+  icon: Component;
+  labelKey: string;
+}
+
+const defaultMenuActions: MenuAction[] = [
+  { key: 'play', icon: Play, labelKey: 'songs.actions.play' },
+  { key: 'addToQueue', icon: ListPlus, labelKey: 'songs.actions.add_to_queue' },
+  { key: 'scrape', icon: Search, labelKey: 'songs.actions.scrape' },
+  { key: 'viewDetails', icon: Info, labelKey: 'songs.actions.view_details' },
+];
 
 const props = withDefaults(defineProps<{
   songs: (Song | RecentSong)[];
@@ -19,6 +32,7 @@ const props = withDefaults(defineProps<{
   showPlayedAt?: boolean;
   showIndex?: boolean;
   itemHeight?: number;
+  menuActions?: MenuAction[];
 }>(), {
   isLoading: false,
   hasMore: false,
@@ -27,19 +41,53 @@ const props = withDefaults(defineProps<{
   showAlbum: true,
   showPlayedAt: false,
   showIndex: true,
-  itemHeight: 64
+  itemHeight: 64,
 });
 
 const emit = defineEmits<{
   (e: 'loadMore'): void;
   (e: 'play', song: Song): void;
   (e: 'retry'): void;
+  (e: 'menuAction', action: string, song: Song): void;
 }>();
 
 const { songs } = toRefs(props);
 const playerStore = usePlayerStore();
 const libraryStore = useLibraryStore();
 const { t } = useI18n();
+
+const activeMenuSongId = ref<number | null>(null);
+const menuRef = ref<HTMLElement | null>(null);
+
+onClickOutside(menuRef, () => {
+  activeMenuSongId.value = null;
+});
+
+const menuPosition = ref({ top: '0px', left: '0px' });
+
+const toggleMenu = (songId: number, event: MouseEvent) => {
+  if (activeMenuSongId.value === songId) {
+    activeMenuSongId.value = null;
+    return;
+  }
+  const btn = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  const menuWidth = 168;
+  const menuHeight = 180;
+  let top = rect.bottom + 4;
+  let left = rect.right - menuWidth;
+  if (top + menuHeight > window.innerHeight) top = rect.top - menuHeight - 4;
+  if (left < 8) left = 8;
+  menuPosition.value = { top: `${top}px`, left: `${left}px` };
+  activeMenuSongId.value = songId;
+};
+
+const handleMenuAction = (action: string, song: Song | RecentSong) => {
+  activeMenuSongId.value = null;
+  emit('menuAction', action, song as Song);
+};
+
+const resolvedMenuActions = () => props.menuActions ?? defaultMenuActions;
 
 const { list, containerProps, wrapperProps } = useVirtualList(songs, {
   itemHeight: props.itemHeight,
@@ -215,13 +263,34 @@ const handlePlay = (song: Song | RecentSong) => {
           </div>
 
           <!-- Actions (固定宽度) -->
-          <div class="flex justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <div class="relative flex justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
              <button 
                class="p-1 text-text-secondary hover:text-text-primary active:text-text-primary rounded-full hover:bg-bg-surface active:bg-bg-surface transition-colors"
-               @click.stop
+               @click.stop="toggleMenu(song.id, $event)"
              >
                <MoreHorizontal class="w-4 h-4" />
              </button>
+             <Teleport to="body">
+               <transition name="menu-fade">
+                 <div
+                   v-if="activeMenuSongId === song.id"
+                   ref="menuRef"
+                   class="fixed z-[200] min-w-[160px] py-1 bg-bg-surface border border-border rounded-xl shadow-xl"
+                   :style="{ top: menuPosition.top, left: menuPosition.left }"
+                   @click.stop
+                 >
+                   <button
+                     v-for="action in resolvedMenuActions()"
+                     :key="action.key"
+                     class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-elevate transition-colors"
+                     @click="handleMenuAction(action.key, song)"
+                   >
+                     <component :is="action.icon" class="w-4 h-4 flex-shrink-0" />
+                     <span>{{ t(action.labelKey) }}</span>
+                   </button>
+                 </div>
+               </transition>
+             </Teleport>
           </div>
         </div>
       </div>
@@ -265,5 +334,15 @@ img.loaded {
   );
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite linear;
+}
+
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
 }
 </style>

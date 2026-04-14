@@ -6,11 +6,16 @@ import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { Search, Filter, ArrowUpDown } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import { scrapeApi } from '@/api/scrape';
+import { useToast } from '@/composables/useToast';
 import VirtualSongList from '@/components/common/VirtualSongList.vue';
 
 const playerStore = usePlayerStore();
 const libraryStore = useLibraryStore();
 const { t } = useI18n();
+const router = useRouter();
+const toast = useToast();
 const songs = ref<Song[]>([]);
 const limit = ref(50);
 const offset = ref(0);
@@ -74,6 +79,29 @@ const playAllSongs = () => {
   }
 };
 
+const handleMenuAction = async (action: string, song: Song) => {
+  switch (action) {
+    case 'play':
+      playerStore.play(song);
+      break;
+    case 'addToQueue':
+      playerStore.addToQueue(song);
+      toast.success(t('common.add_to_queue'));
+      break;
+    case 'scrape':
+      try {
+        await scrapeApi.batchCreate([song.id]);
+        toast.success(t('scrape.batch_created', { count: 1 }));
+        router.push('/scrape');
+      } catch {
+        toast.error(t('common.error'));
+      }
+      break;
+    case 'viewDetails':
+      break;
+  }
+};
+
 onMounted(() => {
   fetchSongs();
   // Fetch more metadata to ensure mapping works for larger libraries
@@ -119,6 +147,7 @@ onMounted(() => {
         @loadMore="loadMore"
         @play="playSong"
         @retry="retrySongs"
+        @menu-action="handleMenuAction"
       />
     </div>
   </div>
