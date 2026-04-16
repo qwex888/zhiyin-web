@@ -329,15 +329,6 @@ const deleteModal = reactive({
   isBatch: false,
 });
 
-const deletableSessions = computed(() =>
-  filteredSessions.value.filter(s => deletableStatuses.has(s.status))
-);
-
-const isAllDeletableSelected = computed(() => {
-  if (deletableSessions.value.length === 0) return false;
-  return deletableSessions.value.every(s => selectedSessionIds.value.has(s.id));
-});
-
 const showDeleteModal = (sessionId: number) => {
   deleteModal.sessionId = sessionId;
   deleteModal.isBatch = false;
