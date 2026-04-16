@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "coverage": "vitest run --coverage",
+    "release": "bash scripts/release.sh",
     "prepare": "husky"
   },
   "dependencies": {
