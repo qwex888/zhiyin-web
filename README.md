@@ -1,6 +1,6 @@
 <div align="center">
   <img src="src/assets/logo.svg" alt="ZHIYIN Logo" width="128" />
-  <h1>ZHIYIN · 知音</h1>
+  <h1>ZHIYIN Music · 知音音乐</h1>
   <p>Self-hosted NAS music streaming web client</p>
 
   ![Vue](https://img.shields.io/badge/Vue_3-4FC08D?logo=vuedotjs&logoColor=white)
@@ -15,7 +15,7 @@
 
 ## Introduction
 
-**ZHIYIN (知音)** is a music streaming frontend application designed for NAS users, providing a modern web interface to manage and play your personal music library.
+**ZHIYIN Music（知音音乐）** is a music streaming frontend application designed for NAS users, providing a modern web interface to manage and play your personal music library.
 
 ### Features
 

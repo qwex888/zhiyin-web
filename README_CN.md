@@ -1,6 +1,6 @@
 <div align="center">
   <img src="src/assets/logo.svg" alt="ZHIYIN Logo" width="128" />
-  <h1>ZHIYIN · 知音</h1>
+  <h1>ZHIYIN Music · 知音音乐</h1>
   <p>自部署 NAS 音乐流媒体 Web 客户端</p>
 
   ![Vue](https://img.shields.io/badge/Vue_3-4FC08D?logo=vuedotjs&logoColor=white)
@@ -15,7 +15,7 @@
 
 ## 简介
 
-**ZHIYIN（知音）** 是一个面向 NAS 用户的音乐流媒体前端应用，提供现代化的 Web 界面来管理和播放你的个人音乐库。
+**ZHIYIN Music（知音音乐）** 是一个面向 NAS 用户的音乐流媒体前端应用，提供现代化的 Web 界面来管理和播放你的个人音乐库。
 
 ### 主要功能
 
