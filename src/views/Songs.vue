@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { musicApi } from '@/api/music';
 import type { Song } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
-import { Search, Filter, ArrowUpDown } from 'lucide-vue-next';
+import { Search, Filter, ArrowUpDown, X } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { scrapeApi } from '@/api/scrape';
@@ -22,39 +23,76 @@ const offset = ref(0);
 const isLoading = ref(false);
 const hasMore = ref(true);
 const hasError = ref(false);
+const searchQuery = ref('');
+let fetchId = 0;
+
+const buildParams = (extraOffset?: number) => {
+  const params: { limit: number; offset: number; q?: string } = {
+    limit: limit.value,
+    offset: extraOffset ?? offset.value,
+  };
+  if (searchQuery.value.trim()) params.q = searchQuery.value.trim();
+  return params;
+};
 
 const fetchSongs = async () => {
+  const currentId = ++fetchId;
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await musicApi.getSongs({ limit: limit.value, offset: offset.value });
+    const { data } = await musicApi.getSongs(buildParams());
+    if (currentId !== fetchId) return;
     songs.value = data.items;
     hasMore.value = data.has_next;
   } catch (e) {
+    if (currentId !== fetchId) return;
     console.error(t('common.error'), e);
     hasError.value = true;
     hasMore.value = false;
   } finally {
-    isLoading.value = false;
+    if (currentId === fetchId) isLoading.value = false;
   }
 };
 
 const loadMore = async () => {
   if (!hasMore.value || isLoading.value || hasError.value) return;
+  const currentId = ++fetchId;
   isLoading.value = true;
   try {
     const nextOffset = offset.value + limit.value;
-    const { data } = await musicApi.getSongs({ limit: limit.value, offset: nextOffset });
+    const { data } = await musicApi.getSongs(buildParams(nextOffset));
+    if (currentId !== fetchId) return;
     songs.value = [...songs.value, ...data.items];
     offset.value = nextOffset;
     hasMore.value = data.has_next;
   } catch (e) {
+    if (currentId !== fetchId) return;
     console.error(t('common.error'), e);
     hasError.value = true;
     hasMore.value = false;
   } finally {
-    isLoading.value = false;
+    if (currentId === fetchId) isLoading.value = false;
   }
+};
+
+const resetAndFetch = () => {
+  offset.value = 0;
+  songs.value = [];
+  hasMore.value = true;
+  hasError.value = false;
+  fetchSongs();
+};
+
+const debouncedSearch = useDebounceFn(() => {
+  resetAndFetch();
+}, 350);
+
+watch(searchQuery, () => {
+  debouncedSearch();
+});
+
+const clearSearch = () => {
+  searchQuery.value = '';
 };
 
 const retrySongs = () => {
@@ -104,7 +142,6 @@ const handleMenuAction = async (action: string, song: Song) => {
 
 onMounted(() => {
   fetchSongs();
-  // Fetch more metadata to ensure mapping works for larger libraries
   libraryStore.fetchArtists({ limit: 5000 }); 
   libraryStore.fetchAlbums({ limit: 5000 });
 });
@@ -124,10 +161,18 @@ onMounted(() => {
          <div class="relative flex-1 md:flex-none">
            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
            <input 
+             v-model="searchQuery"
              type="text" 
              :placeholder="t('common.search')" 
-             class="w-full md:w-64 bg-bg-surface border border-border rounded-full py-2 pl-10 pr-4 text-sm text-text-primary focus:outline-none focus:border-primary/50 transition-colors"
+             class="w-full md:w-64 bg-bg-surface border border-border rounded-full py-2 pl-10 pr-9 text-sm text-text-primary focus:outline-none focus:border-primary/50 transition-colors"
            />
+           <button
+             v-if="searchQuery"
+             class="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors"
+             @click="clearSearch"
+           >
+             <X class="w-4 h-4" />
+           </button>
          </div>
          <button class="p-2 bg-bg-surface border border-border rounded-full hover:bg-bg-elevate transition-colors text-text-secondary hover:text-text-primary flex-shrink-0">
            <Filter class="w-4 h-4" />

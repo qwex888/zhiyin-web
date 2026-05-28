@@ -7,16 +7,16 @@ interface StreamTokenResponse {
 }
 
 export const musicApi = {
-  getSongs: (params: { limit?: number; offset?: number } = {}) => {
+  getSongs: (params: { limit?: number; offset?: number; q?: string } = {}) => {
     return api.get<PaginatedResponse<Song>>('/songs', { params });
   },
   getSong: (id: number) => {
     return api.get<Song>(`/songs/${id}`);
   },
-  getAlbums: (params: { limit?: number; offset?: number } = {}) => {
+  getAlbums: (params: { limit?: number; offset?: number; q?: string } = {}) => {
     return api.get<PaginatedResponse<Album>>('/albums', { params });
   },
-  getArtists: (params: { limit?: number; offset?: number } = {}) => {
+  getArtists: (params: { limit?: number; offset?: number; q?: string } = {}) => {
     return api.get<PaginatedResponse<Artist>>('/artists', { params });
   },
   getBatchSongs: (ids: number[]) => {

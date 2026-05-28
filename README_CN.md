@@ -74,9 +74,9 @@ services:
       - "8080:8080"
     
     volumes:
-      # 音乐目录（只读）- 请修改为你的实际路径
+      # 音乐目录可选（只读）- 请修改为你的实际路径
       # 默认配置会自动扫描 /music，无需再手动配置 config.toml
-      - ./music:/music:ro
+      - ./music:/music
       
       # 数据库目录（持久化）
       - ./data:/data
