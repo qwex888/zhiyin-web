@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree } from 'lucide-vue-next';
+import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree, HardDrive } from 'lucide-vue-next';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { usePlayerStore } from '@/stores/player';
+import { useAppConnectivity } from '@/offline/network';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const authStore = useAuthStore();
 const isCollapsed = ref(false);
+const { isOffline } = useAppConnectivity();
+
+const onlineOnlyPaths = new Set(['/history', '/stats', '/scrape', '/organize', '/settings']);
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
@@ -69,13 +73,16 @@ const menuItems = computed(() => [
     <nav class="flex-1 px-3">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.path">
-          <router-link
-            :to="item.path"
+          <component
+            :is="isOffline && onlineOnlyPaths.has(item.path) ? 'span' : 'router-link'"
+            :to="isOffline && onlineOnlyPaths.has(item.path) ? undefined : item.path"
             class="flex items-center gap-3 py-3 rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap"
             :class="[
-              route.path === item.path
-                ? 'bg-primary/10 text-primary'
-                : 'text-text-secondary hover:bg-bg-elevate hover:text-text-primary',
+              isOffline && onlineOnlyPaths.has(item.path)
+                ? 'text-text-tertiary cursor-not-allowed opacity-40'
+                : route.path === item.path
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-text-secondary hover:bg-bg-elevate hover:text-text-primary',
               isCollapsed ? 'justify-center px-2' : 'px-4'
             ]"
             :title="isCollapsed ? item.name : ''"
@@ -84,20 +91,39 @@ const menuItems = computed(() => [
             <span :class="isCollapsed ? 'opacity-0 w-0' : 'opacity-100 transition-opacity duration-300'">
               {{ item.name }}
             </span>
-          </router-link>
+          </component>
         </li>
       </ul>
     </nav>
 
     <!-- 底部设置 & 退出 -->
     <div class="pb-24 p-4 border-t border-border space-y-1">
-      <router-link 
-        to="/settings"
+      <router-link
+        to="/offline"
         class="flex items-center gap-3 py-3 w-full rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap"
         :class="[
-          route.path === '/settings'
+          route.path === '/offline'
             ? 'bg-primary/10 text-primary'
             : 'text-text-secondary hover:bg-bg-elevate hover:text-text-primary',
+          isCollapsed ? 'justify-center px-2' : 'px-4'
+        ]"
+        :title="isCollapsed ? t('nav.offline') : ''"
+      >
+        <HardDrive class="w-5 h-5 flex-shrink-0" />
+        <span :class="isCollapsed ? 'opacity-0 w-0' : 'opacity-100 transition-opacity duration-300'">
+          {{ t('nav.offline') }}
+        </span>
+      </router-link>
+      <component 
+        :is="isOffline ? 'span' : 'router-link'"
+        :to="isOffline ? undefined : '/settings'"
+        class="flex items-center gap-3 py-3 w-full rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap"
+        :class="[
+          isOffline
+            ? 'text-text-tertiary cursor-not-allowed opacity-40'
+            : route.path === '/settings'
+              ? 'bg-primary/10 text-primary'
+              : 'text-text-secondary hover:bg-bg-elevate hover:text-text-primary',
           isCollapsed ? 'justify-center px-2' : 'px-4'
         ]"
         :title="isCollapsed ? t('nav.settings') : ''"
@@ -106,7 +132,7 @@ const menuItems = computed(() => [
         <span :class="isCollapsed ? 'opacity-0 w-0' : 'opacity-100 transition-opacity duration-300'">
           {{ t('nav.settings') }}
         </span>
-      </router-link>
+      </component>
       <button
         @click="handleLogout"
         class="flex items-center gap-3 py-3 w-full rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap text-text-secondary hover:bg-red-500/10 hover:text-red-400"

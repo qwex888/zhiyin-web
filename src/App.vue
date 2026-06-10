@@ -2,6 +2,7 @@
 import { computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useOnline } from '@vueuse/core';
 import dayjs from 'dayjs';
 import MainLayout from '@/components/layout/MainLayout.vue';
 import ToastContainer from '@/components/common/ToastContainer.vue';
@@ -11,12 +12,18 @@ import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
 import { useTheme } from '@/composables/useTheme';
 import { usePlayerStore } from '@/stores/player';
+import { useLibraryStore } from '@/stores/library';
+import { useOfflineStore } from '@/stores/offline';
+import { setBackendReachable } from '@/offline/network';
 
 const route = useRoute();
 const toast = useToast();
 const systemStore = useSystemStore();
 const authStore = useAuthStore();
 const playerStore = usePlayerStore();
+const libraryStore = useLibraryStore();
+const offlineStore = useOfflineStore();
+const browserOnline = useOnline();
 const { locale, t } = useI18n();
 
 useTheme();
@@ -32,18 +39,47 @@ watch(locale, (newLocale) => {
 });
 
 const checkHealth = async () => {
+  if (!browserOnline.value) {
+    setBackendReachable(false);
+    systemStore.setConnected(false);
+    await libraryStore.hydrateLocalMetadata();
+    await offlineStore.refreshMeta();
+    return;
+  }
   try {
     await systemApi.getHealth();
     systemStore.setConnected(true);
-  } catch (e) {
+    setBackendReachable(true);
+    if (authStore.isAuthenticated) {
+      void offlineStore.syncLibrary();
+    }
+  } catch {
     systemStore.setConnected(false);
-    toast.error(t('settings.backend_connect_failed'));
+    setBackendReachable(false);
+    await libraryStore.hydrateLocalMetadata();
+    if (authStore.isAuthenticated) {
+      toast.error(t('settings.backend_connect_failed'));
+    }
+  } finally {
+    await offlineStore.refreshMeta();
   }
 };
 
+watch(browserOnline, (online) => {
+  if (authStore.isAuthenticated) {
+    if (online) void checkHealth();
+    else {
+      setBackendReachable(false);
+      systemStore.setConnected(false);
+      void libraryStore.hydrateLocalMetadata();
+    }
+  }
+});
+
 onMounted(() => {
   if (authStore.isAuthenticated) {
-    checkHealth();
+    void checkHealth();
+    void libraryStore.hydrateLocalMetadata();
   }
   playerStore.isPlaying = false;
 });

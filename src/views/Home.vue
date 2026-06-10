@@ -5,13 +5,16 @@ import { statsApi } from '@/api/stats';
 import { historyApi } from '@/api/history';
 import { musicApi } from '@/api/music';
 import type { Stats, Song, RecentSong } from '@/types';
-import { Play, Clock, BarChart3, Disc, Music2, Users, Inbox, AlertCircle, RefreshCw } from 'lucide-vue-next';
+import { Play, Clock, BarChart3, Disc, Music2, Users, Inbox, AlertCircle, RefreshCw, WifiOff } from 'lucide-vue-next';
 import { usePlayerStore } from '@/stores/player';
 import { useI18n } from 'vue-i18n';
 import CoverImage from '@/components/common/CoverImage.vue';
 import dayjs from 'dayjs';
+import { useOfflineStore } from '@/stores/offline';
+import { offlineDb } from '@/offline/db';
 
 const playerStore = usePlayerStore();
+const offlineStore = useOfflineStore();
 const { t } = useI18n();
 const router = useRouter();
 
@@ -20,15 +23,25 @@ const recentSongs = ref<RecentSong[]>([]);
 const recommendations = ref<Song[]>([]);
 const isLoading = ref(true);
 const hasError = ref(false);
+const isOfflineView = ref(false);
+const localSongs = ref<Song[]>([]);
 
 const formatTimeAgo = (date: string | undefined) => {
   if (!date) return t('common.just_now');
   return dayjs(date).fromNow();
 };
 
+const showOfflineFallback = async () => {
+  isOfflineView.value = true;
+  await offlineStore.refreshMeta();
+  localSongs.value = await offlineDb.songs.limit(12).toArray();
+};
+
 const fetchData = async () => {
   isLoading.value = true;
   hasError.value = false;
+  isOfflineView.value = false;
+
   try {
     const { data: statsData } = await statsApi.getStats();
     stats.value = statsData;
@@ -42,9 +55,8 @@ const fetchData = async () => {
     if (recs && recs.length > 0) {
       recommendations.value = recs;
     }
-  } catch (error) {
-    console.error(t('common.error'), error);
-    hasError.value = true;
+  } catch {
+    await showOfflineFallback();
   } finally {
     isLoading.value = false;
   }
@@ -101,6 +113,83 @@ const goViewAllRecent = () => {
         {{ t('common.retry') }}
       </button>
     </div>
+
+    <!-- 离线视图 -->
+    <template v-else-if="isOfflineView">
+      <section class="space-y-4">
+        <div class="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200">
+          <WifiOff class="w-5 h-5 flex-shrink-0" />
+          <span class="text-sm">{{ t('offline.currently_offline_hint') }}</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div class="bg-bg-surface p-5 rounded-xl border border-border flex items-center gap-4">
+            <div class="p-3 rounded-full bg-primary/10 text-primary">
+              <Music2 class="w-6 h-6" />
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-text-primary">{{ offlineStore.localSongCount }}</div>
+              <div class="text-sm text-text-secondary">{{ t('offline.local_songs') }}</div>
+            </div>
+          </div>
+          <div class="bg-bg-surface p-5 rounded-xl border border-border flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-500/10 text-emerald-500">
+              <Disc class="w-6 h-6" />
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-text-primary">{{ offlineStore.mediaStats.audioCount }}</div>
+              <div class="text-sm text-text-secondary">{{ t('offline.cached_tracks') }}</div>
+            </div>
+          </div>
+          <div class="bg-bg-surface p-5 rounded-xl border border-border flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-500/10 text-pink-500">
+              <Clock class="w-6 h-6" />
+            </div>
+            <div>
+              <div class="text-sm font-bold text-text-primary">{{ offlineStore.lastSyncedAt ? dayjs(offlineStore.lastSyncedAt).fromNow() : t('offline.never') }}</div>
+              <div class="text-sm text-text-secondary">{{ t('offline.last_sync') }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="localSongs.length > 0" class="space-y-4">
+        <h2 class="text-xl font-bold text-text-primary flex items-center gap-2">
+          <Music2 class="w-5 h-5 text-primary" />
+          {{ t('nav.songs') }}
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+          <div
+            v-for="song in localSongs"
+            :key="song.id"
+            class="group space-y-3 cursor-pointer"
+            @click="playSong(song)"
+          >
+            <div class="relative aspect-square bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-xl overflow-hidden shadow-lg border border-border group-hover:border-primary/50 transition-all">
+              <CoverImage
+                :cover-id="song.cover_id"
+                size="medium"
+                lazy
+                img-class="transition-transform duration-500 group-hover:scale-110"
+              >
+                <template #fallback>
+                  <div class="w-full h-full flex items-center justify-center bg-bg-elevate">
+                    <Music2 class="w-12 h-12 text-text-tertiary" />
+                  </div>
+                </template>
+              </CoverImage>
+              <button class="absolute bottom-3 right-3 w-12 h-12 bg-primary-gradient rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:scale-110">
+                <Play class="w-6 h-6 text-white fill-current ml-1" />
+              </button>
+            </div>
+            <div class="px-1">
+              <div class="font-semibold text-text-primary truncate group-hover:text-primary transition-colors">{{ song.title }}</div>
+              <div class="text-sm text-text-secondary truncate">{{ song.artist || song.artist_name || t('common.unknown_artist') }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </template>
 
     <template v-else>
     <!-- 统计卡片 -->

@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, toRefs, type Component } from 'vue';
+import { ref, toRefs, onMounted, watch, type Component } from 'vue';
 import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
-import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info } from 'lucide-vue-next';
+import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload } from 'lucide-vue-next';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import CoverImage from '@/components/common/CoverImage.vue';
+import { getCachedSongIds } from '@/offline/media-cache';
 
 export interface MenuAction {
   key: string;
@@ -55,6 +56,15 @@ const { songs } = toRefs(props);
 const playerStore = usePlayerStore();
 const libraryStore = useLibraryStore();
 const { t } = useI18n();
+
+const cachedIds = ref<Set<number>>(new Set());
+
+const refreshCachedIds = async () => {
+  cachedIds.value = await getCachedSongIds();
+};
+
+onMounted(refreshCachedIds);
+watch(songs, refreshCachedIds);
 
 const activeMenuSongId = ref<number | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
@@ -233,8 +243,15 @@ const handlePlay = (song: Song | RecentSong) => {
                </CoverImage>
             </div>
             <div class="min-w-0 flex-1">
-              <div class="text-sm md:text-base font-medium truncate" :class="isCurrentSong(song) ? 'text-primary' : 'text-text-primary'">
-                {{ song.title }}
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-sm md:text-base font-medium truncate" :class="isCurrentSong(song) ? 'text-primary' : 'text-text-primary'">
+                  {{ song.title }}
+                </span>
+                <HardDriveDownload
+                  v-if="cachedIds.has(song.id)"
+                  class="w-3.5 h-3.5 flex-shrink-0 text-emerald-400"
+                  :title="t('offline.cached_badge')"
+                />
               </div>
               <div class="md:hidden text-xs text-text-secondary truncate">
                 {{ getArtistName(song) }}

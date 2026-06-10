@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { isOfflineMode } from '@/offline/network';
+import i18n from '@/i18n';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -34,26 +36,36 @@ const router = createRouter({
       path: '/history',
       name: 'History',
       component: () => import('@/views/History.vue'),
+      meta: { onlineOnly: true },
     },
     {
       path: '/settings',
       name: 'Settings',
       component: () => import('@/views/Settings.vue'),
+      meta: { onlineOnly: true },
+    },
+    {
+      path: '/offline',
+      name: 'Offline',
+      component: () => import('@/views/Offline.vue'),
     },
     {
       path: '/stats',
       name: 'Stats',
       component: () => import('@/views/Stats.vue'),
+      meta: { onlineOnly: true },
     },
     {
       path: '/scrape',
       name: 'Scrape',
       component: () => import('@/views/Scrape.vue'),
+      meta: { onlineOnly: true },
     },
     {
       path: '/organize',
       name: 'Organize',
       component: () => import('@/views/Organize.vue'),
+      meta: { onlineOnly: true },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -75,6 +87,14 @@ router.beforeEach((to) => {
 
   if (!authStore.isAuthenticated) {
     return { name: 'Login' };
+  }
+
+  if (to.meta.onlineOnly && isOfflineMode()) {
+    return {
+      name: 'Songs',
+      query: { offline: '1' },
+      state: { offlineRedirect: i18n.global.t('offline.route_blocked') },
+    };
   }
 
   return true;

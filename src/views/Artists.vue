@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
-import { musicApi } from '@/api/music';
+import { queryArtists, queryBatchSongs } from '@/offline/library-query';
 import type { Artist } from '@/types';
 import { Play, Search, Users, AlertCircle, RefreshCw, Inbox, X, Loader2 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
@@ -37,7 +37,7 @@ const fetchArtists = async () => {
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await musicApi.getArtists(buildParams());
+    const data = await queryArtists(buildParams());
     if (currentId !== fetchId) return;
     artists.value = data.items;
     hasMore.value = data.has_next;
@@ -57,7 +57,7 @@ const loadMore = async () => {
   isLoadingMore.value = true;
   try {
     const nextOffset = offset.value + limit.value;
-    const { data } = await musicApi.getArtists(buildParams(nextOffset));
+    const data = await queryArtists(buildParams(nextOffset));
     if (currentId !== fetchId) return;
     artists.value = [...artists.value, ...data.items];
     offset.value = nextOffset;
@@ -114,8 +114,8 @@ const retryArtists = () => {
 const playArtist = async (artist: Artist) => {
   try {
     const songIds = artist.song_ids;
-    const { data: songs } = await musicApi.getBatchSongs(songIds || []);
-    if (songs && songs.length > 0) {
+    const songs = await queryBatchSongs(songIds || []);
+    if (songs.length > 0) {
       playerStore.setQueue(songs);
       playerStore.play(songs[0]);
     } else {

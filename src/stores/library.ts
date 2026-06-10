@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Song, Album, Artist } from '@/types';
-import { musicApi } from '@/api/music';
+import { offlineDb, hasLocalLibrary } from '@/offline/db';
+import { querySongs, queryAlbums, queryArtists } from '@/offline/library-query';
 
 export const useLibraryStore = defineStore('library', () => {
   const songs = ref<Song[]>([]);
@@ -11,14 +12,21 @@ export const useLibraryStore = defineStore('library', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
+  const hydrateLocalMetadata = async () => {
+    if (!(await hasLocalLibrary())) return;
+    artists.value = await offlineDb.artists.toArray();
+    albums.value = await offlineDb.albums.toArray();
+    totalSongs.value = await offlineDb.songs.count();
+  };
+
   const fetchSongs = async (params: { limit?: number; offset?: number } = {}) => {
     loading.value = true;
     try {
-      const response = await musicApi.getSongs(params);
-      songs.value = response.data.items;
-      totalSongs.value = response.data.total;
-    } catch (err: any) {
-      error.value = err.message;
+      const data = await querySongs(params);
+      songs.value = data.items;
+      totalSongs.value = data.total;
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'error';
     } finally {
       loading.value = false;
     }
@@ -27,10 +35,10 @@ export const useLibraryStore = defineStore('library', () => {
   const fetchAlbums = async (params: { limit?: number; offset?: number } = {}) => {
     loading.value = true;
     try {
-      const response = await musicApi.getAlbums(params);
-      albums.value = response.data.items;
-    } catch (err: any) {
-      error.value = err.message;
+      const data = await queryAlbums(params);
+      albums.value = data.items;
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'error';
     } finally {
       loading.value = false;
     }
@@ -39,10 +47,10 @@ export const useLibraryStore = defineStore('library', () => {
   const fetchArtists = async (params: { limit?: number; offset?: number } = {}) => {
     loading.value = true;
     try {
-      const response = await musicApi.getArtists(params);
-      artists.value = response.data.items;
-    } catch (err: any) {
-      error.value = err.message;
+      const data = await queryArtists(params);
+      artists.value = data.items;
+    } catch (err: unknown) {
+      error.value = err instanceof Error ? err.message : 'error';
     } finally {
       loading.value = false;
     }
@@ -66,6 +74,7 @@ export const useLibraryStore = defineStore('library', () => {
     fetchSongs,
     fetchAlbums,
     fetchArtists,
+    hydrateLocalMetadata,
     getArtistName,
     getAlbumName
   };

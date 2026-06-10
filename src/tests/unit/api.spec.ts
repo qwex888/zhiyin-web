@@ -48,7 +48,7 @@ describe('Music API', () => {
 
   it('getCoverUrl returns correct URL', () => {
     const url = musicApi.getCoverUrl(456);
-    expect(url).toBe('/api/covers/456');
+    expect(url).toBe('/api/covers/456?size=original');
   });
 });
 

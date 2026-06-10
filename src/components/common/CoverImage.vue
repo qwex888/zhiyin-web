@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { useCoverUrl } from '@/composables/useCoverUrl';
 
 const props = withDefaults(defineProps<{
   coverId?: number | null;
@@ -15,11 +16,9 @@ const props = withDefaults(defineProps<{
 });
 
 const hasError = ref(false);
+const { displayUrl } = useCoverUrl(() => props.coverId);
 
-const coverUrl = computed(() => {
-  if (!props.coverId) return '';
-  return `/api/covers/${props.coverId}`;
-});
+const coverUrl = computed(() => displayUrl.value);
 
 const showImage = computed(() => !!props.coverId && !hasError.value);
 

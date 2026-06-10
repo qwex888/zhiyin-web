@@ -42,4 +42,8 @@ app.directive('click-outside', {
 // Lazy image directive - 图片懒加载指令
 app.directive('lazy', lazyImageDirective);
 
+import('virtual:pwa-register').then(({ registerSW }) => {
+  registerSW({ immediate: true });
+});
+
 app.mount('#app')

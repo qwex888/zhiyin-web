@@ -5,6 +5,25 @@ import { musicApi } from '@/api/music';
 import { Howl, Howler } from 'howler';
 import { useToast } from '@/composables/useToast';
 import { useLibraryStore } from '@/stores/library';
+import i18n from '@/i18n';
+import {
+  getCachedAudioObjectUrl,
+  hasCachedAudio,
+  cacheAudioFromStreamUrl,
+  cacheCoverInBackground,
+  type StreamQuality,
+} from '@/offline/media-cache';
+import { isAppOnline } from '@/offline/network';
+
+const swCacheNotifier = new Map<string, () => void>();
+if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'audio-cached') {
+      const k = `${event.data.songId}:${event.data.quality}`;
+      swCacheNotifier.get(k)?.();
+    }
+  });
+}
 
 export const usePlayerStore = defineStore('player', () => {
   const libraryStore = useLibraryStore();
@@ -24,16 +43,65 @@ export const usePlayerStore = defineStore('player', () => {
   const shuffleRemaining = ref<number[]>([]); // 剩余未播放的歌曲索引
   
   let sound: Howl | null = null;
-  let progressInterval: any = null;
+  let progressInterval: ReturnType<typeof setInterval> | null = null;
+  let activeObjectUrl: string | null = null;
   const toast = useToast();
-  // We can't use useI18n inside defineStore directly in some setups, but here it's likely fine if called inside actions
-  // Or we can just use simple English/Chinese fallback
-  
-  // Actions
+  const cachingInProgress = new Set<string>();
+
+  const revokeObjectUrl = () => {
+    if (activeObjectUrl) {
+      URL.revokeObjectURL(activeObjectUrl);
+      activeObjectUrl = null;
+    }
+  };
+  async function bgCache(songId: number, quality: StreamQuality): Promise<void> {
+    const key = `${songId}:${quality}`;
+    if (cachingInProgress.has(key)) return;
+    cachingInProgress.add(key);
+
+    try {
+      const ac = new AbortController();
+
+      const unwatch = watch(currentSong, () => {
+        if (currentSong.value?.id !== songId) ac.abort();
+      });
+      const onVis = () => { if (document.hidden) ac.abort(); };
+      document.addEventListener('visibilitychange', onVis);
+
+      try {
+        const cachedBySw = await Promise.race([
+          new Promise<boolean>(resolve => {
+            swCacheNotifier.set(key, () => resolve(true));
+          }),
+          new Promise<boolean>(resolve => {
+            setTimeout(() => resolve(false), 180_000);
+          }),
+          new Promise<boolean>((_, reject) => {
+            ac.signal.addEventListener('abort', () => reject(new DOMException('cancelled')));
+          }),
+        ]);
+
+        if (cachedBySw) return;
+        if (await hasCachedAudio(songId, quality)) return;
+
+        if (currentSong.value?.id !== songId) return;
+        const { data } = await musicApi.getStreamToken(songId, quality);
+        const url = musicApi.buildStreamUrl(songId, quality, data.stream_token);
+        await cacheAudioFromStreamUrl(url, songId, quality);
+      } finally {
+        swCacheNotifier.delete(key);
+        unwatch();
+        document.removeEventListener('visibilitychange', onVis);
+      }
+    } catch { /* cancelled or error, silently skip */ }
+    finally { cachingInProgress.delete(key); }
+  }
+
   const initSound = async (song: Song, resetProgress = true) => {
     if (sound) {
       sound.unload();
     }
+    revokeObjectUrl();
 
     if (resetProgress) {
       progress.value = 0;
@@ -41,14 +109,31 @@ export const usePlayerStore = defineStore('player', () => {
     }
 
     let src: string;
-    try {
-      const { data } = await musicApi.getStreamToken(song.id, quality.value);
-      src = musicApi.buildStreamUrl(song.id, quality.value, data.stream_token);
-    } catch {
-      toast.error('播放失败: 无法获取播放凭证');
+    const q = quality.value as StreamQuality;
+    const cachedUrl = await getCachedAudioObjectUrl(song.id, q);
+
+    if (cachedUrl) {
+      src = cachedUrl;
+      activeObjectUrl = cachedUrl;
+    } else if (isAppOnline()) {
+      try {
+        const { data } = await musicApi.getStreamToken(song.id, q);
+        src = musicApi.buildStreamUrl(song.id, q, data.stream_token);
+        if (song.cover_id) cacheCoverInBackground(song.cover_id);
+      } catch {
+        toast.error(i18n.global.t('offline.play_token_failed'));
+        isPlaying.value = false;
+        return;
+      }
+    } else {
+      toast.error(i18n.global.t('offline.play_not_cached'));
       isPlaying.value = false;
       return;
     }
+
+    const needsCache = !activeObjectUrl;
+    const cacheTargetId = song.id;
+    const cacheTargetQuality = q;
 
     sound = new Howl({
       src: [src],
@@ -61,6 +146,9 @@ export const usePlayerStore = defineStore('player', () => {
       onplay: () => {
         isPlaying.value = true;
         startProgressTimer();
+        if (needsCache) {
+          void bgCache(cacheTargetId, cacheTargetQuality);
+        }
       },
       onpause: () => {
         isPlaying.value = false;
@@ -84,44 +172,45 @@ export const usePlayerStore = defineStore('player', () => {
     });
   };
 
+  let initInFlight: number | null = null;
+
   const play = async (song?: Song) => {
     if (song) {
-      if (currentSong.value?.id !== song.id) {
+      if (initInFlight === song.id) return;
+
+      const needsInit = currentSong.value?.id !== song.id || !sound;
+      if (needsInit) {
         const enrichedSong = { ...song };
         if (!enrichedSong.artist) {
-           if (enrichedSong.artist_name) {
-             enrichedSong.artist = enrichedSong.artist_name;
-           } else {
-             const artistName = libraryStore.getArtistName(song.artist_id);
-             if (artistName) {
-               enrichedSong.artist = artistName;
-             }
-           }
+          if (enrichedSong.artist_name) {
+            enrichedSong.artist = enrichedSong.artist_name;
+          } else {
+            const artistName = libraryStore.getArtistName(song.artist_id);
+            if (artistName) enrichedSong.artist = artistName;
+          }
         }
         currentSong.value = enrichedSong;
 
-        if (!queue.value.find(s => s.id === song.id)) {
-          addToQueue(song);
-        }
+        if (!queue.value.find(s => s.id === song.id)) addToQueue(song);
         currentIndex.value = queue.value.findIndex(s => s.id === song.id);
-        
-        await initSound(song);
+
+        initInFlight = song.id;
+        try {
+          await initSound(song);
+        } finally { initInFlight = null; }
       }
     } else if (currentSong.value && !sound) {
-      await initSound(currentSong.value, false);
-      if (sound && progress.value > 0) {
-        (sound as Howl).seek(progress.value);
-      }
+      if (initInFlight === currentSong.value.id) return;
+      initInFlight = currentSong.value.id;
+      try {
+        await initSound(currentSong.value, false);
+        if (sound && progress.value > 0) {
+          (sound as Howl).seek(progress.value);
+        }
+      } finally { initInFlight = null; }
     }
 
-    if (sound) {
-      sound.play();
-    } else if (currentSong.value) {
-       await initSound(currentSong.value);
-       if (sound) {
-         (sound as Howl).play();
-       }
-    }
+    if (sound) sound.play();
   };
 
   const pause = () => {
@@ -320,6 +409,7 @@ export const usePlayerStore = defineStore('player', () => {
       sound.unload();
       sound = null;
     }
+    revokeObjectUrl();
     currentSong.value = null;
     queue.value = [];
     currentIndex.value = -1;

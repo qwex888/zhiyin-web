@@ -2,18 +2,50 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useLibraryStore } from '@/stores/library';
 import { usePlayerStore } from '@/stores/player';
-import { musicApi } from '@/api/music';
 import type { Song } from '@/types';
 
-// Mock API
+const mockMusicApi = vi.hoisted(() => ({
+  getSongs: vi.fn(),
+  getAlbums: vi.fn(),
+  getArtists: vi.fn(),
+  getStreamToken: vi.fn(() => Promise.resolve({ data: { stream_token: 'test-token', expires_in: 60 } })),
+  buildStreamUrl: vi.fn((id: number, quality: string, token: string) => `/api/stream/${id}?quality=${quality}&stoken=${token}`),
+}));
+
 vi.mock('@/api/music', () => ({
-  musicApi: {
-    getSongs: vi.fn(),
-    getAlbums: vi.fn(),
-    getArtists: vi.fn(),
-    getStreamToken: vi.fn(() => Promise.resolve({ data: { stream_token: 'test-token', expires_in: 60 } })),
-    buildStreamUrl: vi.fn((id: number, quality: string, token: string) => `/api/stream/${id}?quality=${quality}&stoken=${token}`),
-  }
+  musicApi: mockMusicApi,
+}));
+
+vi.mock('@/offline/network', () => ({
+  isAppOnline: vi.fn(() => true),
+  isBrowserOnline: vi.fn(() => true),
+  isOfflineMode: vi.fn(() => false),
+  setBackendReachable: vi.fn(),
+}));
+
+vi.mock('@/offline/media-cache', () => ({
+  getCachedAudioObjectUrl: vi.fn(() => Promise.resolve(null)),
+  hasCachedAudio: vi.fn(() => Promise.resolve(false)),
+  cacheAudioFromStreamUrl: vi.fn(() => Promise.resolve()),
+  cacheCoverInBackground: vi.fn(),
+}));
+
+vi.mock('@/offline/library-query', () => ({
+  querySongs: vi.fn((params: unknown) =>
+    mockMusicApi.getSongs(params).then((r: { data: unknown }) => r.data)
+  ),
+  queryAlbums: vi.fn((params: unknown) =>
+    mockMusicApi.getAlbums(params).then((r: { data: unknown }) => r.data)
+  ),
+  queryArtists: vi.fn((params: unknown) =>
+    mockMusicApi.getArtists(params).then((r: { data: unknown }) => r.data)
+  ),
+  queryBatchSongs: vi.fn(),
+}));
+
+vi.mock('@/offline/db', () => ({
+  offlineDb: { artists: { toArray: vi.fn(() => []) }, albums: { toArray: vi.fn(() => []) }, songs: { count: vi.fn(() => 0) } },
+  hasLocalLibrary: vi.fn(() => Promise.resolve(false)),
 }));
 
 // Mock Howler
@@ -49,7 +81,7 @@ describe('Integration Flow', () => {
       const mockSongs: Song[] = [
           { id: 1, title: 'Test Song', artist_id: 10, album_id: 20, duration_secs: 180, file_path: 'path' }
       ];
-      (musicApi.getSongs as any).mockResolvedValue({ 
+      mockMusicApi.getSongs.mockResolvedValue({ 
         data: { 
           items: mockSongs, 
           total: 1, 
@@ -68,7 +100,7 @@ describe('Integration Flow', () => {
 
     it('fetchSongs handles error', async () => {
       const store = useLibraryStore();
-      (musicApi.getSongs as any).mockRejectedValue(new Error('Network Error'));
+      mockMusicApi.getSongs.mockRejectedValue(new Error('Network Error'));
 
       await store.fetchSongs();
 
@@ -86,7 +118,7 @@ describe('Integration Flow', () => {
 
       expect(store.currentSong).toEqual(song);
       expect(store.queue).toContainEqual(song);
-      expect(musicApi.getStreamToken).toHaveBeenCalledWith(1, 'original');
+      expect(mockMusicApi.getStreamToken).toHaveBeenCalledWith(1, 'original');
     });
 
     it('addToQueue adds song', () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
-import { musicApi } from '@/api/music';
+import { querySongs } from '@/offline/library-query';
 import type { Song } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
@@ -40,7 +40,7 @@ const fetchSongs = async () => {
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await musicApi.getSongs(buildParams());
+    const data = await querySongs(buildParams());
     if (currentId !== fetchId) return;
     songs.value = data.items;
     hasMore.value = data.has_next;
@@ -60,7 +60,7 @@ const loadMore = async () => {
   isLoading.value = true;
   try {
     const nextOffset = offset.value + limit.value;
-    const { data } = await musicApi.getSongs(buildParams(nextOffset));
+    const data = await querySongs(buildParams(nextOffset));
     if (currentId !== fetchId) return;
     songs.value = [...songs.value, ...data.items];
     offset.value = nextOffset;
@@ -141,8 +141,11 @@ const handleMenuAction = async (action: string, song: Song) => {
 };
 
 onMounted(() => {
+  if (router.currentRoute.value.query.offline === '1') {
+    toast.info(t('offline.route_blocked'));
+  }
   fetchSongs();
-  libraryStore.fetchArtists({ limit: 5000 }); 
+  libraryStore.fetchArtists({ limit: 5000 });
   libraryStore.fetchAlbums({ limit: 5000 });
 });
 </script>

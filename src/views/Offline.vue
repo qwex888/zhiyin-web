@@ -1,0 +1,145 @@
+<script setup lang="ts">
+import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import dayjs from 'dayjs';
+import {
+  HardDrive,
+  RefreshCw,
+  Trash2,
+  CloudOff,
+  Music2,
+  Image,
+} from 'lucide-vue-next';
+import { useOfflineStore } from '@/stores/offline';
+import { useToast } from '@/composables/useToast';
+import { useAppConnectivity } from '@/offline/network';
+
+const { t } = useI18n();
+const offlineStore = useOfflineStore();
+const toast = useToast();
+const { isOffline } = useAppConnectivity();
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+onMounted(() => {
+  void offlineStore.refreshMeta();
+});
+
+const handleSync = async () => {
+  const ok = await offlineStore.syncLibrary();
+  if (ok) toast.success(t('offline.sync_success'));
+  else toast.error(t('offline.sync_failed'));
+};
+
+const handleClearLibrary = async () => {
+  if (!confirm(t('offline.clear_library_confirm'))) return;
+  await offlineStore.clearLibrary();
+  toast.success(t('offline.clear_library_done'));
+};
+
+const handleClearMedia = async () => {
+  if (!confirm(t('offline.clear_media_confirm'))) return;
+  await offlineStore.clearMedia();
+  toast.success(t('offline.clear_media_done'));
+};
+</script>
+
+<template>
+  <div class="p-6 max-w-2xl mx-auto space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold text-text-primary flex items-center gap-2">
+        <HardDrive class="w-7 h-7 text-primary" />
+        {{ t('offline.title') }}
+      </h1>
+      <p class="text-text-secondary text-sm mt-1">{{ t('offline.subtitle') }}</p>
+    </div>
+
+    <div
+      v-if="isOffline"
+      class="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm"
+    >
+      <CloudOff class="w-5 h-5 flex-shrink-0 mt-0.5" />
+      <p>{{ t('offline.currently_offline_hint') }}</p>
+    </div>
+
+    <section class="bg-bg-surface border border-border rounded-xl p-5 space-y-4">
+      <h2 class="font-semibold text-text-primary">{{ t('offline.library_section') }}</h2>
+      <dl class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt class="text-text-secondary">{{ t('offline.local_songs') }}</dt>
+          <dd class="font-mono text-text-primary">{{ offlineStore.localSongCount }}</dd>
+        </div>
+        <div>
+          <dt class="text-text-secondary">{{ t('offline.last_sync') }}</dt>
+          <dd class="text-text-primary">
+            {{
+              offlineStore.lastSyncedAt
+                ? dayjs(offlineStore.lastSyncedAt).format('YYYY-MM-DD HH:mm')
+                : t('offline.never')
+            }}
+          </dd>
+        </div>
+      </dl>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-white text-sm font-medium disabled:opacity-50"
+          :disabled="!offlineStore.canSync"
+          @click="handleSync"
+        >
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': offlineStore.isSyncing }" />
+          {{ t('offline.sync_now') }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-text-secondary hover:text-red-400 text-sm"
+          @click="handleClearLibrary"
+        >
+          <Trash2 class="w-4 h-4" />
+          {{ t('offline.clear_library') }}
+        </button>
+      </div>
+      <p class="text-xs text-text-secondary">{{ t('offline.library_hint') }}</p>
+    </section>
+
+    <section class="bg-bg-surface border border-border rounded-xl p-5 space-y-4">
+      <h2 class="font-semibold text-text-primary">{{ t('offline.media_section') }}</h2>
+      <dl class="grid grid-cols-2 gap-3 text-sm">
+        <div class="flex items-center gap-2">
+          <Music2 class="w-4 h-4 text-primary" />
+          <div>
+            <dt class="text-text-secondary">{{ t('offline.cached_tracks') }}</dt>
+            <dd class="font-mono text-text-primary">{{ offlineStore.mediaStats.audioCount }}</dd>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <Image class="w-4 h-4 text-primary" />
+          <div>
+            <dt class="text-text-secondary">{{ t('offline.cached_covers') }}</dt>
+            <dd class="font-mono text-text-primary">{{ offlineStore.mediaStats.coverCount }}</dd>
+          </div>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-text-secondary">{{ t('offline.cache_size') }}</dt>
+          <dd class="font-mono text-text-primary">
+            {{ formatBytes(offlineStore.mediaStats.estimatedBytes) }}
+          </dd>
+        </div>
+      </dl>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-text-secondary hover:text-red-400 text-sm"
+        @click="handleClearMedia"
+      >
+        <Trash2 class="w-4 h-4" />
+        {{ t('offline.clear_media') }}
+      </button>
+      <p class="text-xs text-text-secondary">{{ t('offline.media_hint') }}</p>
+    </section>
+  </div>
+</template>

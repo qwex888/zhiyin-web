@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 // import { useI18n } from 'vue-i18n';
 import Sidebar from './Sidebar.vue';
 import PlayerBar from './PlayerBar.vue';
+import OfflineBanner from '@/components/common/OfflineBanner.vue';
 import { Menu } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -18,7 +19,8 @@ watch(() => route.path, () => {
 
 <template>
   <div class="flex flex-col h-screen overflow-hidden bg-bg-main text-text-primary font-sans selection:bg-primary selection:text-white">
-    
+    <OfflineBanner />
+
     <!-- 移动端 Header -->
     <header class="md:hidden h-14 bg-bg-surface/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 z-40 fixed top-0 w-full">
       <div class="font-bold text-lg text-transparent bg-clip-text bg-primary-gradient">ZHIYIN</div>

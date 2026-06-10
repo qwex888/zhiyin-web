@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
-import { musicApi } from '@/api/music';
+import { queryAlbums } from '@/offline/library-query';
 import type { Album } from '@/types';
 import { Disc, Play, Search, Grid, List, AlertCircle, RefreshCw, Inbox, X, Loader2 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
@@ -33,7 +33,7 @@ const fetchAlbums = async () => {
   isLoading.value = true;
   hasError.value = false;
   try {
-    const { data } = await musicApi.getAlbums(buildParams());
+    const data = await queryAlbums(buildParams());
     if (currentId !== fetchId) return;
     albums.value = data.items;
     hasMore.value = data.has_next;
@@ -53,7 +53,7 @@ const loadMore = async () => {
   isLoadingMore.value = true;
   try {
     const nextOffset = offset.value + limit.value;
-    const { data } = await musicApi.getAlbums(buildParams(nextOffset));
+    const data = await queryAlbums(buildParams(nextOffset));
     if (currentId !== fetchId) return;
     albums.value = [...albums.value, ...data.items];
     offset.value = nextOffset;
