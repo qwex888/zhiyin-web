@@ -64,10 +64,7 @@ version: '3.8'
 
 services:
   zhiyin:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: zhiyin:latest
+    image: qwex333/zhiyin:latest
     container_name: zhiyin
     
     ports:
@@ -78,7 +75,7 @@ services:
       # 默认配置会自动扫描 /music，无需再手动配置 config.toml
       - ./music:/music
       
-      # 数据库目录（持久化）
+      # 数据库目录可选（持久化）
       - ./data:/data
       
       # 封面缓存目录(可选， 如果想手动管理封面)
