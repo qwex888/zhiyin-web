@@ -29,6 +29,7 @@
 - 🎯 Smart recommendations
 - 🏷️ Multi-source metadata scraping (NetEase, QQ Music, Kugou, Kuwo, Migu, AcoustID) with lyrics preview and batch operations
 - 📂 File organization — rename and restructure music files based on scraped metadata
+- 📴 Offline mode — PWA with Service Worker caches audio streams on first play; supports Range-based seek from cache, IndexedDB library sync, and network-aware auto fallback
 
 ### Tech Stack
 
@@ -41,6 +42,7 @@
 | Vue Router | Routing |
 | Vue I18n | Internationalization |
 | Howler.js | Audio playback |
+| Workbox + vite-plugin-pwa | Offline PWA & Service Worker |
 | Vite | Build tool |
 
 ---

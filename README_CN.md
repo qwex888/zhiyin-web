@@ -29,6 +29,7 @@
 - 🎯 智能推荐
 - 🏷️ 多源元数据刮削（网易云、QQ音乐、酷狗、酷我、咪咕、AcoustID），支持歌词预览与批量操作
 - 📂 文件整理 — 根据刮削的元数据自动重命名和归档音乐文件
+- 📴 离线模式 — PWA + Service Worker 首次播放自动缓存音频流，支持缓存内 Range 切片 seek、IndexedDB 曲库同步、断网自动降级离线播放
 
 ### 技术栈
 
@@ -41,6 +42,7 @@
 | Vue Router | 路由 |
 | Vue I18n | 国际化 |
 | Howler.js | 音频播放 |
+| Workbox + vite-plugin-pwa | 离线 PWA 与 Service Worker |
 | Vite | 构建工具 |
 
 ---
