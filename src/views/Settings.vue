@@ -76,7 +76,10 @@ const formState = reactive({
     min_file_size: 1024,
     mode: '',
     roots: [] as string[],
-    skip_small_files: true
+    skip_small_files: true,
+    scan_strm: true,
+    strm_mode: 'proxy' as 'proxy' | 'redirect',
+    strm_probe_remote: false,
   },
   security: {
     token_expiry_hours: 168,
@@ -715,6 +718,46 @@ onUnmounted(() => {
                   <button @click="addRoot" class="px-3 py-2 bg-bg-elevate hover:bg-bg-surface border border-border rounded text-text-primary hover:text-primary transition-colors">
                     <Plus class="w-4 h-4" />
                   </button>
+                </div>
+              </div>
+
+              <!-- STRM Settings -->
+              <div class="pt-4 border-t border-border space-y-4">
+                <label class="block text-text-secondary text-xs font-medium mb-2">{{ t('settings.strm_settings') }}</label>
+
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="text-text-primary">{{ t('settings.scan_strm') }}</label>
+                    <p class="text-[10px] text-text-tertiary">{{ t('settings.scan_strm_desc') }}</p>
+                  </div>
+                  <input
+                    v-model="formState.scan.scan_strm"
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                </div>
+
+                <div v-if="formState.scan.scan_strm">
+                  <label class="block text-text-secondary text-xs mb-1">{{ t('settings.strm_mode') }}</label>
+                  <select
+                    v-model="formState.scan.strm_mode"
+                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                  >
+                    <option value="proxy">{{ t('settings.strm_mode_proxy') }}</option>
+                    <option value="redirect">{{ t('settings.strm_mode_redirect') }}</option>
+                  </select>
+                </div>
+
+                <div v-if="formState.scan.scan_strm" class="flex items-center justify-between">
+                  <div>
+                    <label class="text-text-primary">{{ t('settings.strm_probe_remote') }}</label>
+                    <p class="text-[10px] text-text-tertiary">{{ t('settings.strm_probe_remote_desc') }}</p>
+                  </div>
+                  <input
+                    v-model="formState.scan.strm_probe_remote"
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                  />
                 </div>
               </div>
             </div>

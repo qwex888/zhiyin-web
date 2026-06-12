@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { usePlayerStore } from '@/stores/player';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, Music2, ListMusic, List, Maximize2 } from 'lucide-vue-next';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, Music2, ListMusic, List, Maximize2, Cloud } from 'lucide-vue-next';
+import { isStrmSong } from '@/types';
 import CoverImage from '@/components/common/CoverImage.vue';
 import { useI18n } from 'vue-i18n';
 import PlaylistModal from '@/components/common/PlaylistModal.vue';
@@ -89,7 +90,10 @@ const getCurrentModeClass = computed(() => {
 const qualityOptions: Array<'low' | 'medium' | 'high' | 'lossless' | 'original'> = ['low', 'medium', 'high', 'lossless', 'original'];
 const qualityShortLabels: Record<string, string> = { low: '128k', medium: '192k', high: '320k', lossless: 'FLAC', original: 'ORI' };
 
+const isCurrentStrm = computed(() => isStrmSong(playerStore.currentSong));
+
 const toggleQuality = () => {
+  if (isCurrentStrm.value) return;
   const idx = qualityOptions.indexOf(playerStore.quality);
   playerStore.quality = qualityOptions[(idx + 1) % qualityOptions.length];
 };
@@ -140,7 +144,14 @@ const toggleQuality = () => {
          </div>
        </div>
        <div v-if="playerStore.currentSong" class="overflow-hidden flex-1">
-         <div class="text-sm font-medium text-text-primary truncate">{{ playerStore.currentSong.title }}</div>
+         <div class="flex items-center gap-1 min-w-0">
+           <span class="text-sm font-medium text-text-primary truncate">{{ playerStore.currentSong.title }}</span>
+           <Cloud
+             v-if="isStrmSong(playerStore.currentSong)"
+             class="w-3 h-3 flex-shrink-0 text-sky-400"
+             :title="t('player.strm_badge')"
+           />
+         </div>
          <div class="text-xs text-text-secondary truncate">{{ playerStore.currentSong.artist }}</div>
        </div>
      </div>
@@ -214,10 +225,13 @@ const toggleQuality = () => {
         <!-- 音质切换按钮 -->
         <button
           @click="toggleQuality"
-          :title="t(`player.quality_${playerStore.quality}`)"
-          class="text-[10px] font-bold font-mono leading-none px-1.5 py-1 rounded border transition-colors text-text-secondary border-border hover:text-primary hover:border-primary/40"
+          :title="isCurrentStrm ? t('player.strm_quality_locked') : t(`player.quality_${playerStore.quality}`)"
+          class="text-[10px] font-bold font-mono leading-none px-1.5 py-1 rounded border transition-colors"
+          :class="isCurrentStrm
+            ? 'text-text-tertiary border-border/50 cursor-not-allowed opacity-60'
+            : 'text-text-secondary border-border hover:text-primary hover:border-primary/40'"
         >
-          {{ qualityShortLabels[playerStore.quality] }}
+          {{ isCurrentStrm ? 'ORI' : qualityShortLabels[playerStore.quality] }}
         </button>
 
         <!-- 播放列表按钮 -->

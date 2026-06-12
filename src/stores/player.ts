@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import type { Song } from '@/types';
+import { isStrmSong } from '@/types';
 import { musicApi } from '@/api/music';
 import { Howl, Howler } from 'howler';
 import { useToast } from '@/composables/useToast';
@@ -109,7 +110,7 @@ export const usePlayerStore = defineStore('player', () => {
     }
 
     let src: string;
-    const q = quality.value as StreamQuality;
+    const q = (isStrmSong(song) ? 'original' : quality.value) as StreamQuality;
     const cachedUrl = await getCachedAudioObjectUrl(song.id, q);
 
     if (cachedUrl) {
@@ -161,11 +162,17 @@ export const usePlayerStore = defineStore('player', () => {
       },
       onloaderror: () => {
         isPlaying.value = false;
-        toast.error('播放失败: 无法加载音频');
+        const msg = isStrmSong(song)
+          ? i18n.global.t('player.error_strm_unavailable')
+          : i18n.global.t('player.error_local_not_found');
+        toast.error(msg);
       },
       onplayerror: () => {
         isPlaying.value = false;
-        toast.error('播放失败: 发生错误');
+        const msg = isStrmSong(song)
+          ? i18n.global.t('player.error_strm_unavailable')
+          : i18n.global.t('player.error_local_not_found');
+        toast.error(msg);
       },
       onseek: () => {
       }

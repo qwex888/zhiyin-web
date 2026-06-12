@@ -5,7 +5,7 @@ import { statsApi } from '@/api/stats';
 import { historyApi } from '@/api/history';
 import { musicApi } from '@/api/music';
 import type { Stats, Song, RecentSong } from '@/types';
-import { Play, Clock, BarChart3, Disc, Music2, Users, Inbox, AlertCircle, RefreshCw, WifiOff } from 'lucide-vue-next';
+import { Play, Clock, BarChart3, Disc, Music2, Users, Inbox, AlertCircle, RefreshCw, WifiOff, Settings, ChevronRight, Sparkles } from 'lucide-vue-next';
 import { usePlayerStore } from '@/stores/player';
 import { useI18n } from 'vue-i18n';
 import CoverImage from '@/components/common/CoverImage.vue';
@@ -25,6 +25,7 @@ const isLoading = ref(true);
 const hasError = ref(false);
 const isOfflineView = ref(false);
 const localSongs = ref<Song[]>([]);
+const showOnboarding = ref(false);
 
 const formatTimeAgo = (date: string | undefined) => {
   if (!date) return t('common.just_now');
@@ -64,7 +65,22 @@ const fetchData = async () => {
 
 onMounted(() => {
   fetchData();
+  try {
+    if (localStorage.getItem('zhiyin_needs_onboarding') === '1') {
+      showOnboarding.value = true;
+      localStorage.removeItem('zhiyin_needs_onboarding');
+    }
+  } catch { /* noop */ }
 });
+
+const dismissOnboarding = () => {
+  showOnboarding.value = false;
+};
+
+const goToSettings = () => {
+  showOnboarding.value = false;
+  router.push({ name: 'Settings' });
+};
 
 const playSong = (song: Song) => {
   playerStore.play(song);
@@ -338,5 +354,78 @@ const goViewAllRecent = () => {
       </div>
     </section>
     </template>
+
+    <!-- Onboarding Modal -->
+    <Teleport to="body">
+      <transition name="fade">
+        <div v-if="showOnboarding" class="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" @click.self="dismissOnboarding">
+          <div class="bg-bg-surface border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+            <!-- Header -->
+            <div class="relative bg-primary-gradient p-6 pb-8 text-center">
+              <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm mb-4">
+                <Sparkles class="w-7 h-7 text-white" />
+              </div>
+              <h2 class="text-xl font-bold text-white">{{ t('home.onboarding_title') }}</h2>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-5">
+              <p class="text-sm text-text-secondary leading-relaxed">{{ t('home.onboarding_desc') }}</p>
+
+              <ol class="space-y-3">
+                <li class="flex items-start gap-3">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">1</span>
+                  <span class="text-sm text-text-primary">{{ t('home.onboarding_step1') }}</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">2</span>
+                  <span class="text-sm text-text-primary">{{ t('home.onboarding_step2') }}</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">3</span>
+                  <span class="text-sm text-text-primary">{{ t('home.onboarding_step3') }}</span>
+                </li>
+              </ol>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center gap-3 px-6 pb-6">
+              <button
+                @click="dismissOnboarding"
+                class="flex-1 py-2.5 rounded-xl text-sm font-medium text-text-secondary border border-border hover:bg-bg-elevate transition-colors"
+              >
+                {{ t('home.onboarding_skip') }}
+              </button>
+              <button
+                @click="goToSettings"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white bg-primary-gradient hover:brightness-110 shadow-lg shadow-primary/20 transition-all"
+              >
+                <Settings class="w-4 h-4" />
+                {{ t('home.onboarding_go_settings') }}
+                <ChevronRight class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.animate-fade-in {
+  animation: fadeIn 0.35s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+</style>

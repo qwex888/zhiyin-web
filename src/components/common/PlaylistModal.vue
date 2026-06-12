@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 import { usePlayerStore } from '@/stores/player';
 import { useI18n } from 'vue-i18n';
-import { X, Play, Music2, Trash2 } from 'lucide-vue-next';
+import { X, Play, Music2, Trash2, Cloud } from 'lucide-vue-next';
+import { isStrmSong } from '@/types';
 import { useVirtualList } from '@vueuse/core';
 
 const props = defineProps<{
@@ -25,7 +26,8 @@ const close = () => {
   isOpen.value = false;
 };
 
-const formatDuration = (seconds: number) => {
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds == null) return '--:--';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -113,8 +115,15 @@ const { list, containerProps, wrapperProps } = useVirtualList(queue, {
 
             <!-- Info -->
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium truncate" :class="playerStore.currentIndex === index ? 'text-primary' : 'text-text-primary'">
-                {{ song.title }}
+              <div class="flex items-center gap-1 min-w-0">
+                <span class="text-sm font-medium truncate" :class="playerStore.currentIndex === index ? 'text-primary' : 'text-text-primary'">
+                  {{ song.title }}
+                </span>
+                <Cloud
+                  v-if="isStrmSong(song)"
+                  class="w-3 h-3 flex-shrink-0 text-sky-400"
+                  :title="t('player.strm_badge')"
+                />
               </div>
               <div class="text-xs text-text-secondary truncate">
                 {{ song.artist || t('common.unknown_artist') }}
@@ -123,7 +132,7 @@ const { list, containerProps, wrapperProps } = useVirtualList(queue, {
 
             <!-- Duration -->
             <div class="text-xs text-text-tertiary font-mono">
-              {{ formatDuration(song.duration_secs || 0) }}
+              {{ formatDuration(song.duration_secs) }}
             </div>
             
             <!-- Remove -->

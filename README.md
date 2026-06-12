@@ -30,6 +30,7 @@
 - 🏷️ Multi-source metadata scraping (NetEase, QQ Music, Kugou, Kuwo, Migu, AcoustID) with lyrics preview and batch operations
 - 📂 File organization — rename and restructure music files based on scraped metadata
 - 📴 Offline mode — PWA with Service Worker caches audio streams on first play; supports Range-based seek from cache, IndexedDB library sync, and network-aware auto fallback
+- ☁️ STRM support — play remote cloud-storage files (`.strm`) via server proxy; auto-detects source type, locks quality to Original, and shows distinct error messages for remote failures
 
 ### Tech Stack
 

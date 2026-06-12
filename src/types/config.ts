@@ -35,6 +35,9 @@ export interface ScanConfig {
   mode: string;
   roots: string[];
   skip_small_files: boolean;
+  scan_strm?: boolean;
+  strm_mode?: 'proxy' | 'redirect';
+  strm_probe_remote?: boolean;
 }
 
 export interface ServerConfig {

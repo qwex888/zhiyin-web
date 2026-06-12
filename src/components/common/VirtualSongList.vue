@@ -2,7 +2,8 @@
 import { ref, toRefs, onMounted, watch, type Component } from 'vue';
 import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
-import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload } from 'lucide-vue-next';
+import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload, Cloud } from 'lucide-vue-next';
+import { isStrmSong } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { useI18n } from 'vue-i18n';
@@ -113,8 +114,8 @@ useInfiniteScroll(containerRef, () => {
   }
 }, { distance: 50 });
 
-const formatDuration = (seconds: number | undefined) => {
-  if (!seconds && seconds !== 0) return '--:--';
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds == null) return '--:--';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -247,6 +248,11 @@ const handlePlay = (song: Song | RecentSong) => {
                 <span class="text-sm md:text-base font-medium truncate" :class="isCurrentSong(song) ? 'text-primary' : 'text-text-primary'">
                   {{ song.title }}
                 </span>
+                <Cloud
+                  v-if="isStrmSong(song)"
+                  class="w-3.5 h-3.5 flex-shrink-0 text-sky-400"
+                  :title="t('player.strm_badge')"
+                />
                 <HardDriveDownload
                   v-if="cachedIds.has(song.id)"
                   class="w-3.5 h-3.5 flex-shrink-0 text-emerald-400"

@@ -70,7 +70,11 @@
     "no_lyrics": "暂无歌词",
     "has_lyrics": "显示歌词",
     "lyrics_available": "有歌词",
-    "show_cover": "显示封面"
+    "show_cover": "显示封面",
+    "strm_quality_locked": "远程歌曲仅支持原始音质",
+    "strm_badge": "远程音频（网盘直链）",
+    "error_strm_unavailable": "远程音频源不可用，可能链接已过期或网络异常",
+    "error_local_not_found": "文件不存在或已被移动"
   },
   "common": {
     "search": "搜索...",
@@ -87,7 +91,9 @@
     "no_data": "暂无数据",
     "just_now": "刚刚",
     "unknown_artist": "未知艺术家",
-    "unknown_played_at": "未知时间"
+    "unknown_played_at": "未知时间",
+    "source_local": "本地文件",
+    "source_strm": "远程直链"
   },
   "home": {
     "stats": {
@@ -100,7 +106,14 @@
     },
     "recent": "最近播放",
     "recommend": "为你推荐",
-    "view_all": "查看全部"
+    "view_all": "查看全部",
+    "onboarding_title": "欢迎使用 ZHIYIN",
+    "onboarding_desc": "管理员账户已创建成功！下一步，前往设置页面扫描你的音乐目录，让 ZHIYIN 发现你的歌曲。",
+    "onboarding_step1": "在「设置」中配置音乐目录路径",
+    "onboarding_step2": "点击「扫描音乐库」开始扫描",
+    "onboarding_step3": "扫描完成后即可浏览和播放音乐",
+    "onboarding_go_settings": "前往设置",
+    "onboarding_skip": "稍后再说"
   },
   "songs": {
     "title": "所有歌曲",
@@ -211,6 +224,14 @@
     "vacuum_threshold": "碎片率阈值 (%)",
     "history_retention_days": "历史保留天数",
     "recommendation_retention_days": "推荐缓存保留天数",
+    "strm_settings": "STRM 远程文件",
+    "scan_strm": "扫描 .strm 文件",
+    "scan_strm_desc": "启用后将扫描网盘直链文件",
+    "strm_mode": "播放模式",
+    "strm_mode_proxy": "服务端代理",
+    "strm_mode_redirect": "直接重定向",
+    "strm_probe_remote": "远程探测音频属性",
+    "strm_probe_remote_desc": "开启会降低扫描速度，但可获取时长等信息",
     "account_security": "账户安全",
     "change_password": "修改密码",
     "change_password_desc": "定期更改密码有助于保护您的账户安全",

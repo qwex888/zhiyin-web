@@ -10,6 +10,8 @@ export interface PaginatedResponse<T> {
   has_prev: boolean;
 }
 
+export type SourceType = 'local' | 'strm';
+
 export interface Song {
   id: number;
   title: string;
@@ -20,16 +22,26 @@ export interface Song {
   album?: string;  // Optional, for UI display after mapping
   album_name?: string; // Alternative field name
   album_artist?: string;
-  duration_secs: number;
+  duration_secs: number | null;
   track_no?: number;
   disc_no?: number;
   year?: number;
   genre?: string;
   cover_id?: number;
   file_path: string;
+  file_size?: number;
+  bitrate?: number | null;
+  sample_rate?: number | null;
+  channels?: number | null;
+  bit_depth?: number | null;
   play_count?: number;
   created_at?: string;
   updated_at?: string;
+  source_type?: SourceType;
+}
+
+export function isStrmSong(song: Song | null | undefined): boolean {
+  return song?.source_type === 'strm';
 }
 
 export interface RecentSong extends Song {

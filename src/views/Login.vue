@@ -109,6 +109,7 @@ const handleSubmit = async () => {
       successMessage.value = t('auth.setup_success');
       isSetupMode.value = false;
       form.value.confirmPassword = '';
+      try { localStorage.setItem('zhiyin_needs_onboarding', '1'); } catch { /* noop */ }
     } else {
       const { data } = await authApi.login(form.value.username.trim(), form.value.password);
       failedAttempts.value = 0;

@@ -2,7 +2,8 @@
 import { ref, computed, onUnmounted, watch, nextTick } from 'vue';
 import { usePlayerStore } from '@/stores/player';
 import { useI18n } from 'vue-i18n';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, ChevronDown, Music2, ListMusic, Volume2, Mic2, List } from 'lucide-vue-next';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, ChevronDown, Music2, ListMusic, Volume2, Mic2, List, Cloud } from 'lucide-vue-next';
+import { isStrmSong } from '@/types';
 import { musicApi } from '@/api/music';
 import CoverImage from '@/components/common/CoverImage.vue';
 
@@ -72,8 +73,8 @@ const containerStyle = computed(() => {
   };
 });
 
-// Format time
-const formatTime = (seconds: number) => {
+const formatTime = (seconds: number | null | undefined) => {
+  if (seconds == null) return '--:--';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -111,6 +112,8 @@ const handleSeek = (e: Event) => {
 };
 
 const qualityShortLabels: Record<string, string> = { low: '128k', medium: '192k', high: '320k', lossless: 'FLAC', original: 'ORI' };
+
+const isCurrentStrm = computed(() => isStrmSong(playerStore.currentSong));
 
 const getModeTitle = (mode: string) => {
   return t(`player.mode.${mode}`);
@@ -457,12 +460,19 @@ const seekToLyric = (time: number) => {
               <h2 class="text-xl md:text-4xl font-bold text-text-primary line-clamp-2">
                 {{ playerStore.currentSong?.title || t('player.playing') }}
               </h2>
+              <!-- STRM Badge -->
+              <Cloud
+                v-if="isStrmSong(playerStore.currentSong)"
+                class="w-5 h-5 flex-shrink-0 text-sky-400"
+                :title="t('player.strm_badge')"
+              />
               <!-- Quality Badge -->
               <span
-                class="px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-wider border border-border text-text-secondary"
-                :title="t(`player.quality_${playerStore.quality}`)"
+                class="px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-wider border"
+                :class="isCurrentStrm ? 'border-border/50 text-text-tertiary' : 'border-border text-text-secondary'"
+                :title="isCurrentStrm ? t('player.strm_quality_locked') : t(`player.quality_${playerStore.quality}`)"
               >
-                {{ qualityShortLabels[playerStore.quality] }}
+                {{ isCurrentStrm ? 'ORI' : qualityShortLabels[playerStore.quality] }}
               </span>
               <!-- Lyrics Badge -->
               <button 
