@@ -104,6 +104,7 @@
     "sort": "Sort",
     "clear_search": "Clear search",
     "menu": "Menu",
+    "cancel": "Cancel",
     "toggle_sidebar": "Toggle sidebar"
   },
   "home": {
@@ -256,7 +257,25 @@
     "password_changed": "Password changed successfully",
     "password_change_failed": "Failed to change password",
     "wrong_password": "Current password is incorrect",
-    "fields_incomplete": "Please fill in all password fields"
+    "fields_incomplete": "Please fill in all password fields",
+    "danger_zone": "Danger Zone",
+    "reset_all_data": "Reset All Data",
+    "reset_all_data_desc": "Clear all songs, covers, transcoded cache, play history, scrape records, etc. User accounts and system configuration will be preserved.",
+    "reset_all_btn": "Reset Data",
+    "reset_confirm_title": "Confirm Reset All Data",
+    "reset_confirm_subtitle": "This action is irreversible",
+    "reset_warning": "The following data will be permanently deleted:",
+    "reset_item_songs": "All songs, artists, and album records",
+    "reset_item_covers": "All cover image cache",
+    "reset_item_transcode": "All transcoded audio cache",
+    "reset_item_history": "All play history and recommendation data",
+    "reset_item_scrape": "All scrape sessions and organize records",
+    "reset_keep": "✓ User accounts and system configuration will be preserved",
+    "reset_type_confirm": "Type RESET to confirm",
+    "reset_type_placeholder": "Type RESET",
+    "reset_execute": "Confirm Reset",
+    "reset_success": "All data has been cleared",
+    "reset_failed": "Failed to reset data, please check logs"
   },
   "auth": {
     "login": "Login",

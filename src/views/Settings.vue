@@ -339,6 +339,31 @@ onMounted(() => {
   fetchScanStatus();
 });
 
+// ── 危险操作：重置所有数据 ──────────────────────────────────
+const showResetConfirm = ref(false);
+const resetConfirmInput = ref('');
+const isResetting = ref(false);
+
+const handleResetAll = async () => {
+  if (resetConfirmInput.value !== 'RESET') return;
+  isResetting.value = true;
+  try {
+    const { data } = await systemApi.resetAllData();
+    if (data.success) {
+      toast.success(t('settings.reset_success'));
+      showResetConfirm.value = false;
+      resetConfirmInput.value = '';
+      await fetchConfig();
+    } else {
+      toast.error(data.message);
+    }
+  } catch {
+    toast.error(t('settings.reset_failed'));
+  } finally {
+    isResetting.value = false;
+  }
+};
+
 onUnmounted(() => {
   stopScanPolling();
 });
@@ -927,14 +952,14 @@ onUnmounted(() => {
                     class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                   />
                 </div>
-                <div class="flex items-center justify-between">
+                <!-- <div class="flex items-center justify-between">
                   <label class="text-text-primary">启用内置 Web 前端</label>
                   <input
                     v-model="formState.web.enabled"
                     type="checkbox"
                     class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                   />
-                </div>
+                </div> -->
                 <div>
                   <label class="block text-text-secondary text-xs mb-1">JWT 过期小时数</label>
                   <input
@@ -1120,6 +1145,92 @@ onUnmounted(() => {
            </div>
         </div>
       </section>
+
+      <!-- Danger Zone -->
+      <section class="space-y-6">
+        <h3 class="text-lg font-semibold text-red-500 border-b border-red-500/20 pb-2 mb-4 flex items-center gap-2">
+          <Trash2 class="w-5 h-5" />
+          {{ t('settings.danger_zone') }}
+        </h3>
+
+        <div class="bg-red-500/5 rounded-2xl border border-red-500/20 p-6 space-y-4">
+          <div class="flex items-start gap-4">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-text-primary">{{ t('settings.reset_all_data') }}</p>
+              <p class="text-xs text-text-secondary mt-1">{{ t('settings.reset_all_data_desc') }}</p>
+            </div>
+            <button
+              @click="showResetConfirm = true"
+              :disabled="isResetting"
+              class="flex-none px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw v-if="isResetting" class="w-4 h-4 animate-spin inline mr-1" />
+              {{ t('settings.reset_all_btn') }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reset Confirmation Modal -->
+      <Teleport to="body">
+        <div
+          v-if="showResetConfirm"
+          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          @click.self="showResetConfirm = false"
+        >
+          <div class="bg-bg-surface rounded-2xl border border-red-500/30 shadow-2xl w-full max-w-md mx-4 p-6 space-y-5 animate-fade-in">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Trash2 class="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-text-primary">{{ t('settings.reset_confirm_title') }}</h4>
+                <p class="text-xs text-text-secondary">{{ t('settings.reset_confirm_subtitle') }}</p>
+              </div>
+            </div>
+
+            <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4 space-y-2">
+              <p class="text-sm text-red-500 font-medium">{{ t('settings.reset_warning') }}</p>
+              <ul class="text-xs text-text-secondary space-y-1 list-disc list-inside">
+                <li>{{ t('settings.reset_item_songs') }}</li>
+                <li>{{ t('settings.reset_item_covers') }}</li>
+                <li>{{ t('settings.reset_item_transcode') }}</li>
+                <li>{{ t('settings.reset_item_history') }}</li>
+                <li>{{ t('settings.reset_item_scrape') }}</li>
+              </ul>
+              <p class="text-xs text-emerald-500 mt-2">{{ t('settings.reset_keep') }}</p>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-xs text-text-secondary">{{ t('settings.reset_type_confirm') }}</label>
+              <input
+                v-model="resetConfirmInput"
+                type="text"
+                :placeholder="t('settings.reset_type_placeholder')"
+                class="w-full px-3 py-2 rounded-lg border border-border bg-bg-main text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+              />
+            </div>
+
+            <div class="flex gap-3 pt-1">
+              <button
+                @click="showResetConfirm = false; resetConfirmInput = ''"
+                class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-bg-elevate text-text-secondary hover:bg-bg-main transition-colors border border-border"
+              >
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                @click="handleResetAll"
+                :disabled="resetConfirmInput !== 'RESET' || isResetting"
+                class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw v-if="isResetting" class="w-4 h-4 animate-spin inline mr-1" />
+                {{ t('settings.reset_execute') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
 
     </div>
   </div>

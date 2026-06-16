@@ -9,6 +9,12 @@ export interface HealthInfo {
   build_time: string;
 }
 
+export interface ResetAllResponse {
+  success: boolean;
+  message: string;
+  cleared: string[];
+}
+
 export const systemApi = {
   triggerScan: () => {
     return api.post('/scan');
@@ -27,5 +33,8 @@ export const systemApi = {
   },
   updateConfig: (config: UpdateConfigParams) => {
     return api.put('/config', config);
+  },
+  resetAllData: () => {
+    return api.post<ResetAllResponse>('/system/reset-all', { confirm: 'CONFIRM_RESET_ALL' });
   },
 };

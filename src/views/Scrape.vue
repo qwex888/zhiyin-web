@@ -104,7 +104,7 @@ const handleCreateScrape = async () => {
 
 const autoScrapeProgress = ref<AutoScrapeProgress | null>(null);
 const isAutoScraping = ref(false);
-const autoScrapeMinScore = ref(60);
+const autoScrapeMinScore = ref(50);
 let autoScrapeTimer: ReturnType<typeof setInterval> | null = null;
 
 const handleAutoScrape = async () => {
@@ -175,6 +175,13 @@ const autoScrapePercent = computed(() => {
   if (!autoScrapeProgress.value || autoScrapeProgress.value.total === 0) return 0;
   return Math.round((autoScrapeProgress.value.completed / autoScrapeProgress.value.total) * 100);
 });
+
+const formatDuration = (seconds: number | undefined) => {
+  if (!seconds) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 // ── Tab2: 会话管理 ────────────────────────────────────────────
 
@@ -450,6 +457,14 @@ const getSongAlbum = (songId: number) => {
   return song?.album || song?.album_name || '';
 };
 
+const getSongDuration = (songId: number) => {
+  const song = songMap.value.get(songId);
+  if (!song?.duration_secs) return '未知';
+  const mins = Math.floor(song.duration_secs / 60);
+  const secs = Math.floor(song.duration_secs % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 const toggleSession = (sessionId: number) => {
   if (expandedSessionId.value === sessionId) {
     expandedSessionId.value = null;
@@ -542,6 +557,8 @@ const handleConfirm = async (session: ScrapeSession) => {
   try {
     await scrapeApi.confirm(session.id, session.version);
     toast.success(t('scrape.confirmed'));
+    expandedSessionId.value = null;
+    searchResults.value = [];
     await fetchSessions();
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: string } })?.response?.data;
@@ -1012,6 +1029,9 @@ onUnmounted(() => {
                   {{ getSongArtist(session.song_id) }}
                   <span v-if="getSongAlbum(session.song_id)"> · {{ getSongAlbum(session.song_id) }}</span>
                 </div>
+                <div>
+                  <span class="text-xs text-text-secondary">时长：{{ getSongDuration(session.song_id) }}</span>
+                </div>
               </div>
 
               <span
@@ -1164,6 +1184,9 @@ onUnmounted(() => {
                           </span>
                           <span v-if="candidate.year" class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded">
                             {{ candidate.year }}
+                          </span>
+                          <span v-if="candidate.duration_secs" class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded font-mono">
+                            {{ formatDuration(candidate.duration_secs) }}
                           </span>
                           <span
                             class="text-[10px] px-1.5 py-0.5 rounded"

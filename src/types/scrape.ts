@@ -56,6 +56,7 @@ export interface SearchResultItem {
   year?: string;
   score: number;
   lyrics_available: boolean;
+  duration_secs?: number;
 }
 
 export interface SearchResponse {
