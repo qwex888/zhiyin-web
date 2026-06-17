@@ -1,11 +1,16 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { Settings, Globe, Palette, Monitor, Moon, Sun, RefreshCw, CheckCircle2, XCircle, Sliders, Save, HardDrive, Music, Shield, Plus, Trash2, Sparkles, Lock, Eye, EyeOff, KeyRound, ChevronRight } from 'lucide-vue-next';
+import { Settings, Globe, Palette, Monitor, Moon, Sun, RefreshCw, CheckCircle2, XCircle, Sliders, Save, HardDrive, Music, Shield, Plus, Trash2, Sparkles, Lock, Eye, EyeOff, KeyRound, ChevronRight, FlaskConical, FolderOpen } from 'lucide-vue-next';
+import DirBrowser from '@/components/common/DirBrowser.vue';
 import { useTheme } from '@/composables/useTheme';
 import { usePlayerStore } from '@/stores/player';
 import { useSystemStore } from '@/stores/system';
 import { useAuthStore } from '@/stores/auth';
+import { useLibraryStore } from '@/stores/library';
+import { useOfflineStore } from '@/stores/offline';
+import { clearLocalLibrary } from '@/offline/db';
+import { clearAllMediaCache } from '@/offline/media-cache';
 import { systemApi, type HealthInfo } from '@/api/system';
 import { authApi } from '@/api/auth';
 import { useToast } from '@/composables/useToast';
@@ -20,6 +25,8 @@ const { theme, setTheme } = useTheme();
 const playerStore = usePlayerStore();
 const systemStore = useSystemStore();
 const authStore = useAuthStore();
+const libraryStore = useLibraryStore();
+const offlineStore = useOfflineStore();
 
 const qualityOptions = [
   { value: 'low', short: '128k' },
@@ -37,6 +44,7 @@ const scanStatus = ref<ScanSnapshot | null>(null);
 let scanPollTimer: ReturnType<typeof setInterval> | null = null;
 const config = ref<SystemConfig | null>(null);
 const newRootPath = ref('');
+const showDirBrowser = ref(false);
 
 const isScanning = computed(() => scanStatus.value?.scanning === true);
 
@@ -143,6 +151,12 @@ const addRoot = () => {
   if (newRootPath.value && !formState.scan.roots.includes(newRootPath.value)) {
     formState.scan.roots.push(newRootPath.value);
     newRootPath.value = '';
+  }
+};
+
+const onDirSelected = (path: string) => {
+  if (path && !formState.scan.roots.includes(path)) {
+    formState.scan.roots.push(path);
   }
 };
 
@@ -350,6 +364,24 @@ const handleResetAll = async () => {
   try {
     const { data } = await systemApi.resetAllData();
     if (data.success) {
+      // 停止播放并清空播放器状态
+      playerStore.clearQueue();
+
+      // 清空本地库元数据（IndexedDB）
+      await clearLocalLibrary();
+
+      // 清空音频/封面媒体缓存（CacheStorage）
+      await clearAllMediaCache();
+
+      // 重置前端 store 数据
+      libraryStore.songs = [];
+      libraryStore.albums = [];
+      libraryStore.artists = [];
+      libraryStore.totalSongs = 0;
+
+      // 刷新离线 store 状态
+      await offlineStore.refreshMeta();
+
       toast.success(t('settings.reset_success'));
       showResetConfirm.value = false;
       resetConfirmInput.value = '';
@@ -652,22 +684,24 @@ onUnmounted(() => {
 
       <!-- System Config -->
       <section v-if="config" class="space-y-6">
-        <div class="flex items-center justify-between border-b border-border pb-2 mb-4">
-          <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
-             <Sliders class="w-5 h-5 text-accent-blue" />
-             {{ t('settings.configuration') }}
-          </h3>
-          <button
-            @click="saveConfig"
-            class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-            :class="hasConfigChanged && !isSaving
-              ? 'bg-primary hover:bg-primary-hover text-white'
-              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'"
-            :disabled="isSaving || !hasConfigChanged"
-          >
-            <Save class="w-4 h-4" />
-            {{ isSaving ? t('settings.saving') : t('settings.save_changes') }}
-          </button>
+        <div class="sticky top-0 z-10 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-2 mb-4 bg-bg-main/95 backdrop-blur-sm border-b border-border">
+          <div class="flex items-center justify-between max-w-5xl mx-auto">
+            <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+               <Sliders class="w-5 h-5 text-accent-blue" />
+               {{ t('settings.configuration') }}
+            </h3>
+            <button
+              @click="saveConfig"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+              :class="hasConfigChanged && !isSaving
+                ? 'bg-primary hover:bg-primary-hover text-white'
+                : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'"
+              :disabled="isSaving || !hasConfigChanged"
+            >
+              <Save class="w-4 h-4" />
+              {{ isSaving ? t('settings.saving') : t('settings.save_changes') }}
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -740,49 +774,12 @@ onUnmounted(() => {
                     class="flex-1 p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none text-sm"
                     @keyup.enter="addRoot"
                   />
-                  <button @click="addRoot" class="px-3 py-2 bg-bg-elevate hover:bg-bg-surface border border-border rounded text-text-primary hover:text-primary transition-colors">
+                  <button @click="addRoot" class="px-3 py-2 bg-bg-elevate hover:bg-bg-surface border border-border rounded text-text-primary hover:text-primary transition-colors" :title="t('settings.add_directory')">
                     <Plus class="w-4 h-4" />
                   </button>
-                </div>
-              </div>
-
-              <!-- STRM Settings -->
-              <div class="pt-4 border-t border-border space-y-4">
-                <label class="block text-text-secondary text-xs font-medium mb-2">{{ t('settings.strm_settings') }}</label>
-
-                <div class="flex items-center justify-between">
-                  <div>
-                    <label class="text-text-primary">{{ t('settings.scan_strm') }}</label>
-                    <p class="text-[10px] text-text-tertiary">{{ t('settings.scan_strm_desc') }}</p>
-                  </div>
-                  <input
-                    v-model="formState.scan.scan_strm"
-                    type="checkbox"
-                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                </div>
-
-                <div v-if="formState.scan.scan_strm">
-                  <label class="block text-text-secondary text-xs mb-1">{{ t('settings.strm_mode') }}</label>
-                  <select
-                    v-model="formState.scan.strm_mode"
-                    class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
-                  >
-                    <option value="proxy">{{ t('settings.strm_mode_proxy') }}</option>
-                    <option value="redirect">{{ t('settings.strm_mode_redirect') }}</option>
-                  </select>
-                </div>
-
-                <div v-if="formState.scan.scan_strm" class="flex items-center justify-between">
-                  <div>
-                    <label class="text-text-primary">{{ t('settings.strm_probe_remote') }}</label>
-                    <p class="text-[10px] text-text-tertiary">{{ t('settings.strm_probe_remote_desc') }}</p>
-                  </div>
-                  <input
-                    v-model="formState.scan.strm_probe_remote"
-                    type="checkbox"
-                    class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                  />
+                  <button @click="showDirBrowser = true" class="px-3 py-2 bg-bg-elevate hover:bg-bg-surface border border-border rounded text-text-primary hover:text-primary transition-colors" :title="t('settings.browse_directory')">
+                    <FolderOpen class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -999,7 +996,7 @@ onUnmounted(() => {
                     class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
                   />
                 </div>
-                <div>
+                <!-- <div>
                   <label class="block text-text-secondary text-xs mb-1">CORS 允许来源（逗号分隔）</label>
                   <input
                     v-model="corsOriginsInput"
@@ -1029,7 +1026,7 @@ onUnmounted(() => {
                     placeholder="zhiyin=debug, axum=info"
                     class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
                   />
-                </div>
+                </div> -->
               </div>
             </div>
           </div>
@@ -1146,6 +1143,78 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Experimental Features -->
+      <section v-if="config" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-amber-500/30 pb-2 mb-4">
+          <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <FlaskConical class="w-5 h-5 text-amber-500" />
+            {{ t('settings.experimental_title') }}
+          </h3>
+          <button
+            @click="saveConfig"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+            :class="hasConfigChanged && !isSaving
+              ? 'bg-amber-500 hover:bg-amber-600 text-white'
+              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'"
+            :disabled="isSaving || !hasConfigChanged"
+          >
+            <Save class="w-4 h-4" />
+            {{ isSaving ? t('settings.saving') : t('settings.save_changes') }}
+          </button>
+        </div>
+
+        <div class="bg-amber-500/5 rounded-2xl border border-amber-500/20 p-1">
+          <div class="bg-bg-surface rounded-xl p-6 space-y-4">
+            <div class="flex items-start gap-3 mb-4">
+              <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FlaskConical class="w-4 h-4 text-amber-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-text-primary">{{ t('settings.strm_settings') }}</p>
+                <p class="text-[10px] text-text-tertiary mt-0.5">{{ t('settings.experimental_desc') }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-4 text-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-text-primary">{{ t('settings.scan_strm') }}</label>
+                  <p class="text-[10px] text-text-tertiary">{{ t('settings.scan_strm_desc') }}</p>
+                </div>
+                <input
+                  v-model="formState.scan.scan_strm"
+                  type="checkbox"
+                  class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                />
+              </div>
+
+              <div v-if="formState.scan.scan_strm">
+                <label class="block text-text-secondary text-xs mb-1">{{ t('settings.strm_mode') }}</label>
+                <select
+                  v-model="formState.scan.strm_mode"
+                  class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                >
+                  <option value="proxy">{{ t('settings.strm_mode_proxy') }}</option>
+                  <option value="redirect">{{ t('settings.strm_mode_redirect') }}</option>
+                </select>
+              </div>
+
+              <div v-if="formState.scan.scan_strm" class="flex items-center justify-between">
+                <div>
+                  <label class="text-text-primary">{{ t('settings.strm_probe_remote') }}</label>
+                  <p class="text-[10px] text-text-tertiary">{{ t('settings.strm_probe_remote_desc') }}</p>
+                </div>
+                <input
+                  v-model="formState.scan.strm_probe_remote"
+                  type="checkbox"
+                  class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Danger Zone -->
       <section class="space-y-6">
         <h3 class="text-lg font-semibold text-red-500 border-b border-red-500/20 pb-2 mb-4 flex items-center gap-2">
@@ -1233,6 +1302,13 @@ onUnmounted(() => {
 
 
     </div>
+
+    <!-- Directory Browser Dialog -->
+    <DirBrowser
+      :visible="showDirBrowser"
+      @close="showDirBrowser = false"
+      @select="onDirSelected"
+    />
   </div>
 </template>
 

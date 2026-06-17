@@ -34,8 +34,8 @@ const menuItems = computed(() => [
   { name: t('nav.artists'), path: '/artists', icon: Mic2 },
   { name: t('nav.history'), path: '/history', icon: History },
   { name: t('nav.stats'), path: '/stats', icon: BarChart2 },
-  { name: t('nav.scrape'), path: '/scrape', icon: Search },
-  { name: t('nav.organize'), path: '/organize', icon: FolderTree },
+  { name: t('nav.scrape'), path: '/scrape', icon: Search, experimental: true },
+  { name: t('nav.organize'), path: '/organize', icon: FolderTree, experimental: true },
 ]);
 </script>
 
@@ -90,7 +90,7 @@ const menuItems = computed(() => [
           >
             <component :is="item.icon" class="w-5 h-5 flex-shrink-0" />
             <span :class="isCollapsed ? 'opacity-0 w-0' : 'opacity-100 transition-opacity duration-300'">
-              {{ item.name }}
+              {{ item.name }} {{ item.experimental ? `（${t('settings.experimental')}）` : '' }}
             </span>
           </component>
         </li>

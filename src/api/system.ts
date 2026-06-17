@@ -15,6 +15,23 @@ export interface ResetAllResponse {
   cleared: string[];
 }
 
+export interface DirEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+}
+
+export interface BrowseDirResponse {
+  current: string;
+  parent: string | null;
+  entries: DirEntry[];
+}
+
+export interface MkdirResponse {
+  success: boolean;
+  path: string;
+}
+
 export const systemApi = {
   triggerScan: () => {
     return api.post('/scan');
@@ -36,5 +53,11 @@ export const systemApi = {
   },
   resetAllData: () => {
     return api.post<ResetAllResponse>('/system/reset-all', { confirm: 'CONFIRM_RESET_ALL' });
+  },
+  browseDir: (path = '/') => {
+    return api.get<BrowseDirResponse>('/system/browse-dir', { params: { path } });
+  },
+  mkdir: (path: string) => {
+    return api.post<MkdirResponse>('/system/mkdir', { path });
   },
 };

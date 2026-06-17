@@ -244,6 +244,16 @@
     "strm_mode_redirect": "直接重定向",
     "strm_probe_remote": "远程探测音频属性",
     "strm_probe_remote_desc": "开启会降低扫描速度，但可获取时长等信息",
+    "browse_directory": "浏览目录",
+    "select_directory": "选择目录",
+    "select_this_dir": "选择此目录",
+    "go_root": "回到根目录",
+    "dir_empty": "此目录为空",
+    "new_folder": "新建文件夹",
+    "new_folder_name": "输入文件夹名称...",
+    "dir_created": "文件夹创建成功",
+    "experimental_title": "实验性功能（谨慎使用）",
+    "experimental_desc": "以下功能尚处于实验阶段，可能存在兼容性问题，请谨慎启用。",
     "account_security": "账户安全",
     "change_password": "修改密码",
     "change_password_desc": "定期更改密码有助于保护您的账户安全",
@@ -275,7 +285,8 @@
     "reset_type_placeholder": "输入 RESET",
     "reset_execute": "确认清除",
     "reset_success": "所有数据已清除",
-    "reset_failed": "清除数据失败，请查看日志"
+    "reset_failed": "清除数据失败，请查看日志",
+    "experimental": "实验性"
   },
   "auth": {
     "login": "登录",

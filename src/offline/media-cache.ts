@@ -227,11 +227,27 @@ export async function ensureCacheCapacity(): Promise<void> {
   await removeCacheAccessRecords(evictIds);
 }
 
-async function countCacheEntries(cacheName: string): Promise<number> {
+async function measureCache(cacheName: string): Promise<{ count: number; bytes: number }> {
   const cache = await caches.open(cacheName).catch(() => null);
-  if (!cache) return 0;
+  if (!cache) return { count: 0, bytes: 0 };
   const keys = await cache.keys();
-  return keys.length;
+  if (keys.length === 0) return { count: 0, bytes: 0 };
+
+  let bytes = 0;
+  await Promise.all(
+    keys.map(async (req) => {
+      const res = await cache.match(req);
+      if (!res) return;
+      const cl = res.headers.get('content-length');
+      if (cl) {
+        bytes += parseInt(cl, 10) || 0;
+      } else {
+        const blob = await res.blob();
+        bytes += blob.size;
+      }
+    }),
+  );
+  return { count: keys.length, bytes };
 }
 
 export async function getMediaCacheStats(): Promise<MediaCacheStats> {
@@ -239,15 +255,14 @@ export async function getMediaCacheStats(): Promise<MediaCacheStats> {
     return { audioCount: 0, coverCount: 0, estimatedBytes: 0 };
   }
 
-  const [audioCount, coverCount, est] = await Promise.all([
-    countCacheEntries(AUDIO_CACHE),
-    countCacheEntries(COVER_CACHE),
-    getStorageEstimate(),
+  const [audio, cover] = await Promise.all([
+    measureCache(AUDIO_CACHE),
+    measureCache(COVER_CACHE),
   ]);
 
   return {
-    audioCount,
-    coverCount,
-    estimatedBytes: est.usage,
+    audioCount: audio.count,
+    coverCount: cover.count,
+    estimatedBytes: audio.bytes + cover.bytes,
   };
 }

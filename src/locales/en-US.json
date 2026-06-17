@@ -244,6 +244,16 @@
     "strm_mode_redirect": "Direct Redirect",
     "strm_probe_remote": "Probe remote audio properties",
     "strm_probe_remote_desc": "Slower scanning but retrieves duration and other info",
+    "browse_directory": "Browse Directory",
+    "select_directory": "Select Directory",
+    "select_this_dir": "Select This Directory",
+    "go_root": "Go to Root",
+    "dir_empty": "This directory is empty",
+    "new_folder": "New Folder",
+    "new_folder_name": "Enter folder name...",
+    "dir_created": "Folder created successfully",
+    "experimental_title": "Experimental Features (Use with Caution)",
+    "experimental_desc": "The following features are experimental and may have compatibility issues. Enable with caution.",
     "account_security": "Account Security",
     "change_password": "Change Password",
     "change_password_desc": "Change your password regularly to keep your account secure",
@@ -275,7 +285,8 @@
     "reset_type_placeholder": "Type RESET",
     "reset_execute": "Confirm Reset",
     "reset_success": "All data has been cleared",
-    "reset_failed": "Failed to reset data, please check logs"
+    "reset_failed": "Failed to reset data, please check logs",
+    "experimental": "Experimental"
   },
   "auth": {
     "login": "Login",
