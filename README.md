@@ -189,7 +189,7 @@ proxy: {
 
 ## Sponsor & Support
 
-ZHIYIN Music is an open-source project, free to use. If you find it helpful, you can support the development by:
+ZHIYIN Music is an growing project, free to use. If you find it helpful, you can support the development by:
 
 - ⭐ Starring the project
 - 🐛 Submitting Issues or PRs
