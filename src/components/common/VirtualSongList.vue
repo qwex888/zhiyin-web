@@ -2,7 +2,7 @@
 import { ref, toRefs, onMounted, watch, type Component } from 'vue';
 import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
-import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload, Cloud } from 'lucide-vue-next';
+import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload, Cloud, Mic2 } from 'lucide-vue-next';
 import { isStrmSong } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
@@ -22,6 +22,7 @@ const defaultMenuActions: MenuAction[] = [
   { key: 'addToQueue', icon: ListPlus, labelKey: 'songs.actions.add_to_queue' },
   { key: 'scrape', icon: Search, labelKey: 'songs.actions.scrape' },
   { key: 'viewDetails', icon: Info, labelKey: 'songs.actions.view_details' },
+  { key: 'searchLyrics', icon: Mic2, labelKey: 'songs.actions.search_lyrics' },
 ];
 
 const props = withDefaults(defineProps<{

@@ -2,10 +2,12 @@
 import { ref, computed, onUnmounted, watch, nextTick } from 'vue';
 import { usePlayerStore } from '@/stores/player';
 import { useI18n } from 'vue-i18n';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, ChevronDown, Music2, ListMusic, Volume2, Mic2, List, Cloud } from 'lucide-vue-next';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, ChevronDown, Music2, ListMusic, Volume2, Mic2, List, Cloud, MoreHorizontal, Info, Share2 } from 'lucide-vue-next';
 import { isStrmSong } from '@/types';
 import { musicApi } from '@/api/music';
+import { songEvents } from '@/utils/songEvents';
 import CoverImage from '@/components/common/CoverImage.vue';
+import LyricsSearchModal from '@/components/common/LyricsSearchModal.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -36,6 +38,18 @@ onUnmounted(() => {
 // Close handler
 const close = () => {
   emit('update:modelValue', false);
+};
+
+const showMoreMenu = ref(false);
+const showLyricsSearch = ref(false);
+
+const closeMoreMenu = () => {
+  showMoreMenu.value = false;
+};
+
+const openLyricsSearch = () => {
+  showMoreMenu.value = false;
+  showLyricsSearch.value = true;
 };
 
 // Drag to close logic
@@ -294,6 +308,16 @@ watch(() => playerStore.currentSong?.id, async () => {
   }
 });
 
+// 歌词替换后自动重新获取
+const unsubLyricsChanged = songEvents.onLyricsChanged((songId) => {
+  if (playerStore.currentSong?.id === songId) {
+    checkLyricsAvailability().then(() => {
+      if (hasLyrics.value) fetchLyrics();
+    });
+  }
+});
+onUnmounted(() => unsubLyricsChanged());
+
 watch(() => props.modelValue, (val) => {
   if (val) {
     // If opening player and lyrics not loaded but available, load them
@@ -353,7 +377,7 @@ const seekToLyric = (time: number) => {
         v-if="modelValue"
         class="fixed inset-0 z-[100] bg-bg-main flex flex-col overflow-hidden touch-none h-screen supports-[height:100dvh]:h-[100dvh]"
         :style="containerStyle"
-        @click.stop
+        @click.stop="closeMoreMenu"
       >
       <!-- Background Blur -->
       <div class="absolute inset-0 z-[-1] opacity-30 blur-3xl scale-150 pointer-events-none" v-if="playerStore.currentSong?.cover_id">
@@ -379,7 +403,48 @@ const seekToLyric = (time: number) => {
           <ChevronDown class="w-6 h-6" />
         </button>
         <div class="w-12 h-1 bg-text-tertiary/20 rounded-full md:hidden"></div>
-        
+
+        <!-- 右侧更多按钮 -->
+        <div class="absolute right-4 flex items-center gap-2">
+          <div class="relative">
+            <button
+              @click.stop="showMoreMenu = !showMoreMenu"
+              class="p-2 text-text-secondary hover:text-text-primary transition-colors rounded-full hover:bg-bg-elevate"
+              :title="t('common.more_actions')"
+            >
+              <MoreHorizontal class="w-6 h-6" />
+            </button>
+
+            <!-- 更多菜单弹出 -->
+            <transition name="fade">
+              <div
+                v-if="showMoreMenu"
+                class="absolute right-0 top-full mt-2 w-48 bg-bg-surface rounded-xl border border-border shadow-xl z-50 overflow-hidden"
+                @click.stop
+              >
+                <button
+                  @click="openLyricsSearch"
+                  class="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-bg-elevate transition-colors"
+                >
+                  <Mic2 class="w-4 h-4" />
+                  <span>{{ t('lyrics.search_replace') }}</span>
+                </button>
+                <button
+                  class="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-bg-elevate transition-colors"
+                >
+                  <Info class="w-4 h-4" />
+                  <span>{{ t('songs.details') }}</span>
+                </button>
+                <button
+                  class="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-bg-elevate transition-colors"
+                >
+                  <Share2 class="w-4 h-4" />
+                  <span>{{ t('common.share') }}</span>
+                </button>
+              </div>
+            </transition>
+          </div>
+        </div>
       </div>
 
       <!-- Content -->
@@ -593,6 +658,16 @@ const seekToLyric = (time: number) => {
     </div>
   </transition>
   </Teleport>
+
+  <!-- 歌词搜索弹窗 -->
+  <LyricsSearchModal
+    v-model="showLyricsSearch"
+    :song-id="playerStore.currentSong?.id ?? 0"
+    :song-title="playerStore.currentSong?.title"
+    :song-artist="playerStore.currentSong?.artist_name"
+    :song-album="playerStore.currentSong?.album ?? playerStore.currentSong?.album_name"
+    :song-duration="playerStore.currentSong?.duration_secs"
+  />
 </template>
 
 <style scoped>

@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router';
 import { scrapeApi } from '@/api/scrape';
 import { useToast } from '@/composables/useToast';
 import VirtualSongList from '@/components/common/VirtualSongList.vue';
+import LyricsSearchModal from '@/components/common/LyricsSearchModal.vue';
 
 const playerStore = usePlayerStore();
 const libraryStore = useLibraryStore();
@@ -137,8 +138,15 @@ const handleMenuAction = async (action: string, song: Song) => {
       break;
     case 'viewDetails':
       break;
+    case 'searchLyrics':
+      lyricsSearchTarget.value = song;
+      showLyricsSearch.value = true;
+      break;
   }
 };
+
+const showLyricsSearch = ref(false);
+const lyricsSearchTarget = ref<Song | null>(null);
 
 onMounted(() => {
   if (router.currentRoute.value.query.offline === '1') {
@@ -151,6 +159,7 @@ onMounted(() => {
 </script>
 
 <template>
+<div class="h-full">
   <div class="flex flex-col h-full p-4 md:p-8  overflow-hidden">
     <!-- Header -->
     <header class="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -200,4 +209,14 @@ onMounted(() => {
       />
     </div>
   </div>
+
+  <LyricsSearchModal
+    v-model="showLyricsSearch"
+    :song-id="lyricsSearchTarget?.id ?? 0"
+    :song-title="lyricsSearchTarget?.title"
+    :song-artist="lyricsSearchTarget?.artist_name"
+    :song-album="lyricsSearchTarget?.album ?? lyricsSearchTarget?.album_name"
+    :song-duration="lyricsSearchTarget?.duration_secs"
+  />
+</div>
 </template>

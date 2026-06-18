@@ -40,4 +40,24 @@ export const musicApi = {
   checkLyrics: (id: number) => {
     return api.get<{ has_lyrics: boolean; song_id: number }>(`/songs/${id}/lyrics/check`);
   },
+  searchLyrics: (id: number, params: { title?: string; artist?: string; album?: string }) => {
+    return api.post<{
+      song_duration_secs: number | null;
+      results: Array<{
+        source: string;
+        song_id: string;
+        title: string;
+        artist: string | null;
+        duration_secs: number | null;
+        lyrics_preview: string | null;
+        lyrics_full: string | null;
+      }>;
+    }>(`/songs/${id}/lyrics/search`, params);
+  },
+  replaceLyrics: (id: number, lyrics: string) => {
+    return api.post<{ success: boolean; method: string }>(`/songs/${id}/lyrics/replace`, { lyrics });
+  },
+  reportDuration: (id: number, durationSecs: number) => {
+    return api.post<{ updated: boolean }>(`/songs/${id}/duration`, { duration_secs: durationSecs });
+  },
 };

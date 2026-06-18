@@ -15,6 +15,7 @@ import {
   type StreamQuality,
 } from '@/offline/media-cache';
 import { isAppOnline } from '@/offline/network';
+import { songEvents } from '@/utils/songEvents';
 
 const swCacheNotifier = new Map<string, () => void>();
 if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
@@ -47,6 +48,9 @@ export const usePlayerStore = defineStore('player', () => {
   let soundGeneration = 0;
   let skipThrottleUntil = 0;
   const SKIP_THROTTLE_MS = 300;
+  const STRM_MAX_RETRIES = 3;
+  const STRM_RETRY_DELAYS = [2000, 4000, 8000];
+  let strmRetryCount = 0;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let activeObjectUrl: string | null = null;
   const toast = useToast();
@@ -163,10 +167,15 @@ export const usePlayerStore = defineStore('player', () => {
       onload: () => {
         if (gen !== soundGeneration) return;
         duration.value = sound?.duration() || 0;
+        // STRM 歌曲且无时长记录时，回报时长给后端补全元数据
+        if (isStrmSong(song) && !song.duration_secs && duration.value > 0 && isFinite(duration.value)) {
+          musicApi.reportDuration(song.id, duration.value).catch(() => {});
+        }
       },
       onplay: () => {
         if (gen !== soundGeneration) return;
         isPlaying.value = true;
+        strmRetryCount = 0;
         startProgressTimer();
         if (needsCache) {
           void bgCache(cacheTargetId, cacheTargetQuality);
@@ -185,8 +194,33 @@ export const usePlayerStore = defineStore('player', () => {
       },
       onloaderror: () => {
         if (gen !== soundGeneration) return;
+        // STRM 歌曲：proxy 模式下流结束可能触发 loaderror 而非 ended，
+        // 如果已播放过（progress > 0），视为正常结束并切换下一首
+        if (isStrmSong(song) && progress.value > 0) {
+          destroySound();
+          isPlaying.value = false;
+          stopProgressTimer();
+          next();
+          return;
+        }
+        // STRM 歌曲首次加载失败时自动重试（远程源可能需要准备数据）
+        if (isStrmSong(song) && strmRetryCount < STRM_MAX_RETRIES) {
+          const delay = STRM_RETRY_DELAYS[strmRetryCount] ?? 8000;
+          strmRetryCount++;
+          toast.info(i18n.global.t('player.strm_retrying', { attempt: strmRetryCount, max: STRM_MAX_RETRIES }));
+          destroySound();
+          setTimeout(() => {
+            if (gen !== soundGeneration) return;
+            progress.value = 0;
+            initSound(song, true).then((g) => {
+              if (g === soundGeneration && sound) sound.play();
+            });
+          }, delay);
+          return;
+        }
         destroySound();
         isPlaying.value = false;
+        strmRetryCount = 0;
         const msg = isStrmSong(song)
           ? i18n.global.t('player.error_strm_unavailable')
           : i18n.global.t('player.error_local_not_found');
@@ -194,8 +228,31 @@ export const usePlayerStore = defineStore('player', () => {
       },
       onplayerror: () => {
         if (gen !== soundGeneration) return;
+        if (isStrmSong(song) && progress.value > 0) {
+          destroySound();
+          isPlaying.value = false;
+          stopProgressTimer();
+          next();
+          return;
+        }
+        // STRM 歌曲播放错误也触发重试
+        if (isStrmSong(song) && strmRetryCount < STRM_MAX_RETRIES) {
+          const delay = STRM_RETRY_DELAYS[strmRetryCount] ?? 8000;
+          strmRetryCount++;
+          toast.info(i18n.global.t('player.strm_retrying', { attempt: strmRetryCount, max: STRM_MAX_RETRIES }));
+          destroySound();
+          setTimeout(() => {
+            if (gen !== soundGeneration) return;
+            progress.value = 0;
+            initSound(song, true).then((g) => {
+              if (g === soundGeneration && sound) sound.play();
+            });
+          }, delay);
+          return;
+        }
         destroySound();
         isPlaying.value = false;
+        strmRetryCount = 0;
         const msg = isStrmSong(song)
           ? i18n.global.t('player.error_strm_unavailable')
           : i18n.global.t('player.error_local_not_found');
@@ -208,6 +265,8 @@ export const usePlayerStore = defineStore('player', () => {
   };
 
   const play = async (song?: Song) => {
+    strmRetryCount = 0;
+
     if (song) {
       const needsInit = currentSong.value?.id !== song.id || !sound;
       if (needsInit) {
@@ -230,11 +289,16 @@ export const usePlayerStore = defineStore('player', () => {
         if (soundGeneration !== genBefore + 1) return;
       }
     } else if (currentSong.value && !sound) {
+      const isStrm = isStrmSong(currentSong.value);
+      // STRM 歌曲从持久化恢复时从头播放，避免远程流 seek 失败
+      const resetProg = isStrm;
+      const savedProgress = isStrm ? 0 : progress.value;
+
       const genBefore = soundGeneration;
-      await initSound(currentSong.value, false);
+      await initSound(currentSong.value, resetProg);
       if (soundGeneration !== genBefore + 1) return;
-      if (sound && progress.value > 0) {
-        (sound as Howl).seek(progress.value);
+      if (sound && savedProgress > 0) {
+        (sound as Howl).seek(savedProgress);
       }
     }
 
@@ -425,7 +489,7 @@ export const usePlayerStore = defineStore('player', () => {
       if (sound && isPlaying.value) {
         progress.value = sound.seek() as number;
       }
-    }, 1000);
+    }, 250);
   };
   
   const stopProgressTimer = () => {
@@ -434,6 +498,41 @@ export const usePlayerStore = defineStore('player', () => {
       progressInterval = null;
     }
   };
+
+  const refreshSong = async (songId: number) => {
+    try {
+      const { data: updated } = await musicApi.getSong(songId);
+      const idx = queue.value.findIndex(s => s.id === songId);
+      if (idx >= 0) {
+        queue.value[idx] = { ...queue.value[idx], ...updated };
+      }
+      if (currentSong.value?.id === songId) {
+        currentSong.value = { ...currentSong.value, ...updated };
+      }
+    } catch { /* 静默处理 */ }
+  };
+
+  const refreshSongs = async (songIds: number[]) => {
+    if (songIds.length === 0) return;
+    const relevant = songIds.filter(id =>
+      currentSong.value?.id === id || queue.value.some(s => s.id === id)
+    );
+    if (relevant.length === 0) return;
+    try {
+      const { data: songs } = await musicApi.getBatchSongs(relevant);
+      for (const updated of songs) {
+        const idx = queue.value.findIndex(s => s.id === updated.id);
+        if (idx >= 0) {
+          queue.value[idx] = { ...queue.value[idx], ...updated };
+        }
+        if (currentSong.value?.id === updated.id) {
+          currentSong.value = { ...currentSong.value, ...updated };
+        }
+      }
+    } catch { /* 静默处理 */ }
+  };
+
+  songEvents.onSongUpdated((ids) => refreshSongs(ids));
 
   const clearQueue = () => {
     ++soundGeneration;
@@ -466,7 +565,9 @@ export const usePlayerStore = defineStore('player', () => {
     setVolume,
     addToQueue,
     setQueue,
-    clearQueue
+    clearQueue,
+    refreshSong,
+    refreshSongs
   };
 }, {
   persist: {

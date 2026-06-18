@@ -45,6 +45,29 @@
     "storage_quota": "Storage quota",
     "cache_limit_warning": "Cache space low — auto-cleaned least recently played tracks"
   },
+  "lyrics": {
+    "search_replace": "Search Lyrics",
+    "search_title": "Lyrics Search",
+    "search": "Search",
+    "searching": "Searching...",
+    "no_results": "No lyrics found",
+    "preview": "Preview",
+    "replace": "Apply Lyrics",
+    "replacing": "Replacing...",
+    "replace_success": "Lyrics replaced successfully",
+    "replace_error": "Failed to replace lyrics",
+    "replace_confirm": "Apply these lyrics?",
+    "source": "Source",
+    "title": "Title",
+    "artist": "Artist",
+    "album": "Album",
+    "original_duration": "Original",
+    "result_duration": "Result",
+    "duration_match": "Duration match",
+    "duration_mismatch": "Duration differs",
+    "swipe_hint": "Swipe to browse more results",
+    "result_count": "{current} / {total}"
+  },
   "player": {
     "playing": "Now Playing",
     "paused": "Paused",
@@ -76,7 +99,8 @@
     "strm_quality_locked": "Remote tracks only support original quality",
     "strm_badge": "Remote audio (cloud link)",
     "error_strm_unavailable": "Remote audio source unavailable — link may have expired or network error",
-    "error_local_not_found": "File not found or has been moved"
+    "error_local_not_found": "File not found or has been moved",
+    "strm_retrying": "Loading remote source, retry {attempt}/{max}…"
   },
   "common": {
     "search": "Search...",
@@ -93,6 +117,7 @@
     "no_data": "No Data",
     "just_now": "Just now",
     "unknown_artist": "Unknown Artist",
+    "unknown_album": "Unknown Album",
     "unknown_played_at": "Unknown Time",
     "source_local": "Local file",
     "source_strm": "Remote link",
@@ -105,6 +130,7 @@
     "clear_search": "Clear search",
     "menu": "Menu",
     "cancel": "Cancel",
+    "share": "Share",
     "toggle_sidebar": "Toggle sidebar",
     "github_repo": "GitHub Repository",
     "new_version": "New version v{version}"
@@ -142,8 +168,10 @@
       "play": "Play",
       "add_to_queue": "Add to Queue",
       "scrape": "Scrape Metadata",
-      "view_details": "View Details"
-    }
+      "view_details": "View Details",
+      "search_lyrics": "Search Lyrics"
+    },
+    "details": "Song Details"
   },
   "albums": {
     "title": "Albums",

@@ -102,6 +102,7 @@ export interface BatchDeleteResponse {
 
 export interface ConfirmResponse {
   session_id: number;
+  song_id: number;
   confirmed: boolean;
   new_version: number;
 }

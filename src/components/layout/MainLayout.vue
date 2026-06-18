@@ -6,10 +6,12 @@ import Sidebar from './Sidebar.vue';
 import PlayerBar from './PlayerBar.vue';
 import OfflineBanner from '@/components/common/OfflineBanner.vue';
 import GithubIcon from '@/components/common/GithubIcon.vue';
-import { Menu } from 'lucide-vue-next';
+import { Menu, Sun, Moon } from 'lucide-vue-next';
+import { useTheme } from '@/composables/useTheme';
 
 const route = useRoute();
 const { t } = useI18n();
+const { theme, toggleTheme } = useTheme();
 const showMobileMenu = ref(false);
 
 // 路由变化时关闭移动端菜单
@@ -27,6 +29,10 @@ watch(() => route.path, () => {
       <div class="font-bold text-lg text-transparent bg-clip-text bg-primary-gradient flex items-center">
         <span>ZHIYIN</span>
         <GithubIcon class="ml-2" />
+        <button class="ml-1 p-1.5 text-text-secondary hover:text-text-primary transition-colors" @click="toggleTheme" :title="t('settings.theme')">
+          <Sun v-if="theme === 'dark'" class="w-4 h-4" />
+          <Moon v-else class="w-4 h-4" />
+        </button>
       </div>
       <div class="flex items-center gap-3">
         <button class="p-2 text-text-secondary hover:text-text-primary transition-colors" @click="showMobileMenu = !showMobileMenu" :title="t('common.menu')">

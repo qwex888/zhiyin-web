@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import GithubIcon from '@/components/common/GithubIcon.vue';
-import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree, HardDrive } from 'lucide-vue-next';
+import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree, HardDrive, Sun, Moon } from 'lucide-vue-next';
+import { useTheme } from '@/composables/useTheme';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
@@ -14,6 +15,7 @@ const { t } = useI18n();
 const authStore = useAuthStore();
 const isCollapsed = ref(false);
 const { isOffline } = useAppConnectivity();
+const { theme, toggleTheme } = useTheme();
 
 const onlineOnlyPaths = new Set(['/history', '/stats', '/scrape', '/organize', '/settings']);
 
@@ -136,6 +138,18 @@ const menuItems = computed(() => [
           {{ t('nav.settings') }}
         </span>
       </component>
+      <button
+        @click="toggleTheme"
+        class="hidden md:flex items-center gap-3 py-3 w-full rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap text-text-secondary hover:bg-bg-elevate hover:text-text-primary"
+        :class="isCollapsed ? 'justify-center px-2' : 'px-4'"
+        :title="isCollapsed ? t('settings.theme') : ''"
+      >
+        <Sun v-if="theme === 'dark'" class="w-5 h-5 flex-shrink-0" />
+        <Moon v-else class="w-5 h-5 flex-shrink-0" />
+        <span :class="isCollapsed ? 'opacity-0 w-0' : 'opacity-100 transition-opacity duration-300'">
+          {{ theme === 'dark' ? t('settings.light') : t('settings.dark') }}{{ t('settings.theme') }}
+        </span>
+      </button>
       <button
         @click="handleLogout"
         class="flex items-center gap-3 py-3 w-full rounded-md text-sm font-medium transition-colors overflow-hidden whitespace-nowrap text-text-secondary hover:bg-red-500/10 hover:text-red-400"

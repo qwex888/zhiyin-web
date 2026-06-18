@@ -1,4 +1,5 @@
 import api from './index';
+import { songEvents } from '@/utils/songEvents';
 import type {
   ListSessionsResponse,
   ListCandidatesResponse,
@@ -38,11 +39,16 @@ export const scrapeApi = {
     });
   },
 
-  confirm: (sessionId: number, expectedVersion: number, force?: boolean) => {
-    return api.post<ConfirmResponse>(`/scrape/sessions/${sessionId}/confirm`, {
+  confirm: async (sessionId: number, expectedVersion: number, force?: boolean) => {
+    const res = await api.post<ConfirmResponse>(`/scrape/sessions/${sessionId}/confirm`, {
       expected_version: expectedVersion,
       force,
     });
+    if (res.data.confirmed && res.data.song_id) {
+      songEvents.emitSongUpdated([res.data.song_id]);
+      songEvents.emitLyricsChanged(res.data.song_id);
+    }
+    return res;
   },
 
   cancelSession: (sessionId: number) => {
