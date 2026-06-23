@@ -177,12 +177,14 @@
   "albums": {
     "title": "Albums",
     "count": "{count} songs",
-    "unknown_year": "Unknown Year"
+    "unknown_year": "Unknown Year",
+    "play_all": "Play All"
   },
   "artists": {
     "title": "Artists",
     "count": "{count} songs",
-    "albums": "{count} albums"
+    "albums": "{count} albums",
+    "play_all": "Play All"
   },
   "settings": {
     "title": "Settings",
@@ -275,6 +277,12 @@
     "strm_mode_redirect": "Direct Redirect",
     "strm_probe_remote": "Probe remote audio properties",
     "strm_probe_remote_desc": "Slower scanning but retrieves duration and other info",
+    "sidecar_settings": "Sidecar Metadata Files",
+    "sidecar_settings_desc": "Generate sidecar metadata files for STRM files to facilitate migration and fast scan identification",
+    "metadata_format": "Sidecar File Format",
+    "metadata_format_desc": "Metadata sidecar file format generated when scraping STRM files (mutually exclusive)",
+    "sidecar_for_all": "Enable sidecar reading for all files",
+    "sidecar_for_all_desc": "By default, only STRM files read sidecar files during scanning; regular audio parses embedded tags directly",
     "browse_directory": "Browse Directory",
     "select_directory": "Select Directory",
     "select_this_dir": "Select This Directory",

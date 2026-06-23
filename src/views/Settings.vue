@@ -68,10 +68,13 @@ const hasUpdate = computed(() => {
 });
 
 const VERSION_CACHE_KEY = 'zhiyin_latest_version';
-const VERSION_CACHE_TTL = 24 * 60 * 60 * 1000;
+// 时间戳，1小时
+const VERSION_CACHE_TTL = 1 * 60 * 60 * 1000;
 
 const checkLatestVersion = async () => {
+  // const API_URL = 'https://github.com/qwex888/zhiyin-music-web/releases/latest';
   const API_URL = 'https://api.github.com/repos/qwex888/zhiyin-music-web/releases/latest';
+
   try {
     const cached = localStorage.getItem(VERSION_CACHE_KEY);
     if (cached) {
@@ -83,6 +86,7 @@ const checkLatestVersion = async () => {
       const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' };
       if (etag) headers['If-None-Match'] = etag;
       const res = await fetch(API_URL, { headers });
+      console.log('checkLatestVersion', res);
       if (res.status === 304) {
         localStorage.setItem(VERSION_CACHE_KEY, JSON.stringify({ version, etag, ts: Date.now() }));
         latestVersion.value = version;
@@ -100,6 +104,7 @@ const checkLatestVersion = async () => {
     } else {
       const res = await fetch(API_URL, { headers: { Accept: 'application/vnd.github.v3+json' } });
       if (!res.ok) return;
+      console.log('checkLatestVersion else', res);
       const data = await res.json();
       const tag = data.tag_name?.replace(/^v/, '') || null;
       const etag = res.headers.get('etag') || '';
@@ -161,6 +166,10 @@ const formState = reactive({
     login_rate_window_secs: 300,
     stream_token_ttl_secs: 60
   },
+  scrape: {
+    metadata_format: "json" as const,
+    sidecar_for_all: false
+  },
   subsonic: {
     enabled: true
   },
@@ -186,6 +195,7 @@ const takeFormSnapshot = () => {
     maintenance: formState.maintenance,
     recommend: formState.recommend,
     scan: formState.scan,
+    scrape: formState.scrape,
     security: formState.security,
     subsonic: formState.subsonic,
     transcode: formState.transcode,
@@ -200,6 +210,7 @@ const hasConfigChanged = computed(() => {
     maintenance: formState.maintenance,
     recommend: formState.recommend,
     scan: formState.scan,
+    scrape: formState.scrape,
     security: formState.security,
     subsonic: formState.subsonic,
     transcode: formState.transcode,
@@ -266,6 +277,7 @@ const fetchConfig = async () => {
       Object.assign(formState.subsonic, data.subsonic);
       Object.assign(formState.transcode, data.transcode);
       Object.assign(formState.web, data.web);
+      if (data.scrape) Object.assign(formState.scrape, data.scrape);
 
       corsOriginsInput.value = (data.security?.cors_origins || []).join(', ');
       loggingModulesInput.value = (data.logging?.modules || []).join(', ');
@@ -300,6 +312,7 @@ const saveConfig = async () => {
           .map(v => v.trim())
           .filter(Boolean)
       },
+      scrape: formState.scrape,
       subsonic: formState.subsonic,
       transcode: formState.transcode,
       web: formState.web
@@ -1285,6 +1298,49 @@ onUnmounted(() => {
                 </div>
                 <input
                   v-model="formState.scan.strm_probe_remote"
+                  type="checkbox"
+                  class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidecar Metadata Settings -->
+      <section v-if="config" class="space-y-6">
+        <div class="bg-amber-500/5 rounded-2xl border border-amber-500/20 p-1">
+          <div class="bg-bg-surface rounded-xl p-6 space-y-4">
+            <div class="flex items-start gap-3 mb-4">
+              <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <HardDrive class="w-4 h-4 text-amber-500" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-text-primary">{{ t('settings.sidecar_settings') }}</p>
+                <p class="text-[10px] text-text-tertiary mt-0.5">{{ t('settings.sidecar_settings_desc') }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-4 text-sm">
+              <div>
+                <label class="block text-text-secondary text-xs mb-1">{{ t('settings.metadata_format') }}</label>
+                <select
+                  v-model="formState.scrape.metadata_format"
+                  class="w-full p-2 bg-bg-elevate rounded border border-border text-text-primary focus:border-primary outline-none"
+                >
+                  <option value="json">JSON (.metadata.json)</option>
+                  <option value="nfo">NFO (.nfo - Kodi/Jellyfin)</option>
+                </select>
+                <p class="text-[10px] text-text-tertiary mt-1">{{ t('settings.metadata_format_desc') }}</p>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-text-primary">{{ t('settings.sidecar_for_all') }}</label>
+                  <p class="text-[10px] text-text-tertiary">{{ t('settings.sidecar_for_all_desc') }}</p>
+                </div>
+                <input
+                  v-model="formState.scrape.sidecar_for_all"
                   type="checkbox"
                   class="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                 />

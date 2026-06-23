@@ -76,12 +76,18 @@ export interface TranscodeConfig {
   max_concurrent_transcodes: number;
 }
 
+export interface ScrapeConfig {
+  metadata_format: 'json' | 'nfo';
+  sidecar_for_all: boolean;
+}
+
 export interface SystemConfig {
   database: DatabaseConfig & ConfigItem<DatabaseConfig>;
   logging: LoggingConfig & ConfigItem<LoggingConfig>;
   maintenance: MaintenanceConfig & ConfigItem<MaintenanceConfig>;
   recommend: RecommendConfig & ConfigItem<RecommendConfig>;
   scan: ScanConfig & ConfigItem<ScanConfig>;
+  scrape: ScrapeConfig & ConfigItem<ScrapeConfig>;
   security: SecurityConfig & ConfigItem<SecurityConfig>;
   server: ServerConfig & ConfigItem<ServerConfig>;
   subsonic: SubsonicConfig & ConfigItem<SubsonicConfig>;
@@ -94,6 +100,7 @@ export interface UpdateConfigParams {
   maintenance?: Partial<MaintenanceConfig>;
   recommend?: Partial<RecommendConfig>;
   scan?: Partial<ScanConfig>;
+  scrape?: Partial<ScrapeConfig>;
   security?: Partial<SecurityConfig>;
   subsonic?: Partial<SubsonicConfig>;
   transcode?: Partial<TranscodeConfig>;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { queryAlbums } from '@/offline/library-query';
 import type { Album } from '@/types';
@@ -8,6 +9,7 @@ import { useI18n } from 'vue-i18n';
 import CoverImage from '@/components/common/CoverImage.vue';
 
 const { t } = useI18n();
+const router = useRouter();
 const albums = ref<Album[]>([]);
 const limit = ref(50);
 const offset = ref(0);
@@ -19,6 +21,10 @@ const searchQuery = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
 const scrollContainer = ref<HTMLElement | null>(null);
 let fetchId = 0;
+
+const goToAlbum = (albumId: number) => {
+  router.push({ name: "AlbumDetail", params: { id: albumId } });
+};
 
 const buildParams = (extraOffset?: number) => {
   const params: { limit: number; offset: number; q?: string } = {
@@ -190,6 +196,7 @@ onUnmounted(() => {
           v-for="album in albums" 
           :key="album.id"
           class="group cursor-pointer p-4 rounded-xl hover:bg-bg-elevate transition-colors border border-transparent hover:border-border"
+          @click="goToAlbum(album.id)"
         >
           <div class="relative aspect-square mb-4 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-lg shadow-lg overflow-hidden border border-border">
             <CoverImage
@@ -205,9 +212,9 @@ onUnmounted(() => {
               </template>
             </CoverImage>
             
-            <button class="absolute bottom-3 right-3 w-12 h-12 bg-primary-gradient rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:scale-110">
+            <!-- <button class="absolute bottom-3 right-3 w-12 h-12 bg-primary-gradient rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:scale-110">
               <Play class="w-6 h-6 text-white fill-current ml-1" />
-            </button>
+            </button> -->
           </div>
 
           <div class="text-center md:text-left">
@@ -224,6 +231,7 @@ onUnmounted(() => {
           v-for="album in albums"
           :key="album.id"
           class="group flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-bg-elevate transition-colors cursor-pointer border border-transparent hover:border-border"
+          @click="goToAlbum(album.id)"
         >
           <div class="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg overflow-hidden border border-border bg-bg-elevate">
             <CoverImage
