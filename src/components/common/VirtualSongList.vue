@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, toRefs, onMounted, watch, type Component } from 'vue';
+import { ref, toRefs, onMounted, watch, nextTick, type Component } from 'vue';
 import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
 import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload, Cloud, Mic2 } from 'lucide-vue-next';
@@ -44,7 +44,7 @@ const props = withDefaults(defineProps<{
   showAlbum: true,
   showPlayedAt: false,
   showIndex: true,
-  itemHeight: 64,
+  itemHeight: 72,
 });
 
 const emit = defineEmits<{
@@ -66,7 +66,13 @@ const refreshCachedIds = async () => {
 };
 
 onMounted(refreshCachedIds);
-watch(songs, refreshCachedIds);
+watch(songs, () => {
+  nextTick(() => {
+    const el = containerRef.value as HTMLElement | undefined;
+    if (el) el.scrollTop = 0;
+  });
+  refreshCachedIds();
+});
 
 const activeMenuSongId = ref<number | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
@@ -103,7 +109,7 @@ const resolvedMenuActions = () => props.menuActions ?? defaultMenuActions;
 
 const { list, containerProps, wrapperProps } = useVirtualList(songs, {
   itemHeight: props.itemHeight,
-  overscan: 5, // 减少预渲染数量，优化性能
+  overscan: 5,
 });
 
 const containerRef = containerProps.ref;
@@ -133,7 +139,7 @@ const isCurrentSong = (song: Song | RecentSong) => {
 
 const getArtistName = (song: Song | RecentSong) => {
   if ('artist' in song && song.artist) return song.artist;
-  if ('artist_name' in song && song.artist_name) return song.artist_name; // Fallback if type differs
+  if ('artist_name' in song && song.artist_name) return song.artist_name;
   return libraryStore.getArtistName(song.artist_id) || t('common.unknown_artist');
 };
 
@@ -143,7 +149,6 @@ const getAlbumName = (song: Song | RecentSong) => {
 };
 
 const handlePlay = (song: Song | RecentSong) => {
-  // Convert RecentSong to Song if needed, though they are compatible for play
   emit('play', song as Song);
 };
 
@@ -194,13 +199,14 @@ const handlePlay = (song: Song | RecentSong) => {
         <div 
           v-for="{ data: song, index } in list" 
           :key="song.id"
-          class="group grid p-3 items-center hover:bg-bg-elevate transition-colors cursor-default box-border h-[64px]"
+          class="group grid p-3 items-center hover:bg-bg-elevate transition-colors cursor-default box-border"
           :class="[
              { 'bg-primary/5': isCurrentSong(song) },
              showPlayedAt 
                ? 'gap-4 grid-cols-[40px_minmax(200px,5fr)_minmax(120px,2fr)_minmax(120px,2fr)_minmax(100px,1.5fr)_64px_40px]' 
                : 'gap-3 grid-cols-[32px_1fr_52px_32px] md:gap-4 md:grid-cols-[40px_minmax(200px,5fr)_minmax(150px,3fr)_64px_40px] lg:grid-cols-[40px_minmax(220px,5fr)_minmax(150px,3fr)_minmax(150px,2fr)_64px_40px]'
           ]"
+          :style="{ height: `${itemHeight}px` }"
           @dblclick="handlePlay(song)"
         >
           <!-- Play Button / Index -->
@@ -229,9 +235,9 @@ const handlePlay = (song: Song | RecentSong) => {
             </span>
           </div>
 
-          <!-- Title (优先显示，分配最多空间) -->
+          <!-- Title (支持两行显示) -->
           <div class="flex items-center gap-2 md:gap-3 min-w-0 overflow-hidden">
-            <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded overflow-hidden flex-shrink-0 shadow-sm relative">
+            <div class="w-9 h-9 md:w-10 md:h-10 from-zinc-800/50 to-zinc-900/50 rounded overflow-hidden flex-shrink-0 shadow-sm relative">
                <CoverImage
                  :cover-id="song.cover_id"
                  size="thumb"
@@ -239,23 +245,31 @@ const handlePlay = (song: Song | RecentSong) => {
                />
             </div>
             <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5 min-w-0">
-                <span class="text-sm md:text-base font-medium truncate" :class="isCurrentSong(song) ? 'text-primary' : 'text-text-primary'">
-                  {{ song.title }}
-                </span>
+              <div class="text-sm md:text-base font-medium leading-tight line-clamp-2" :class="isCurrentSong(song) ? 'text-primary' : 'text-text-primary'">
+                {{ song.title }}
+              </div>
+              <div class="md:hidden flex items-center gap-1 mt-0.5 min-w-0">
                 <Cloud
                   v-if="isStrmSong(song)"
-                  class="w-3.5 h-3.5 flex-shrink-0 text-sky-400"
+                  class="w-3 h-3 flex-shrink-0 text-sky-400"
+                />
+                <HardDriveDownload
+                  v-if="cachedIds.has(song.id)"
+                  class="w-3 h-3 flex-shrink-0 text-emerald-400"
+                />
+                <span class="text-xs text-text-secondary truncate">{{ getArtistName(song) }}</span>
+              </div>
+              <div class="hidden md:flex items-center gap-1 mt-0.5 min-w-0">
+                <Cloud
+                  v-if="isStrmSong(song)"
+                  class="w-3 h-3 flex-shrink-0 text-sky-400"
                   :title="t('player.strm_badge')"
                 />
                 <HardDriveDownload
                   v-if="cachedIds.has(song.id)"
-                  class="w-3.5 h-3.5 flex-shrink-0 text-emerald-400"
+                  class="w-3 h-3 flex-shrink-0 text-emerald-400"
                   :title="t('offline.cached_badge')"
                 />
-              </div>
-              <div class="md:hidden text-xs text-text-secondary truncate">
-                {{ getArtistName(song) }}
               </div>
             </div>
           </div>
@@ -324,27 +338,6 @@ const handlePlay = (song: Song | RecentSong) => {
 </template>
 
 <style scoped>
-/* 封面加载动画 */
-@keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: 200px 0;
-  }
-}
-
-.bg-gradient-to-br {
-  background-image: linear-gradient(
-    90deg,
-    rgba(39, 39, 42, 0.5) 0px,
-    rgba(63, 63, 70, 0.5) 40px,
-    rgba(39, 39, 42, 0.5) 80px
-  );
-  background-size: 200px 100%;
-  animation: shimmer 1.5s infinite linear;
-}
-
 .menu-fade-enter-active,
 .menu-fade-leave-active {
   transition: opacity 0.15s ease, transform 0.15s ease;

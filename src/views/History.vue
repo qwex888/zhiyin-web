@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { historyApi } from '@/api/history';
 import type { Song, RecentSong } from '@/types';
 import { usePlayerStore } from '@/stores/player';
-import { Calendar } from 'lucide-vue-next';
+import { Calendar, RefreshCw } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { scrapeApi } from '@/api/scrape';
@@ -71,6 +71,15 @@ onMounted(() => {
         <Calendar class="w-8 h-8 text-primary" />
         {{ t('nav.history') }}
       </h1>
+      <button
+        @click="fetchHistory"
+        :disabled="isLoading"
+        class="p-2 rounded-lg hover:bg-bg-elevate text-text-secondary hover:text-primary transition-colors"
+        :class="{ 'animate-spin': isLoading }"
+        :title="t('common.refresh')"
+      >
+        <RefreshCw class="w-5 h-5" />
+      </button>
     </header>
 
     <div class="flex-1 overflow-hidden">

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { usePlayerStore } from '@/stores/player';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, Music2, ListMusic, List, Maximize2, Cloud, Loader2 } from 'lucide-vue-next';
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, Music2, ListMusic, List, Maximize2, Cloud, HardDriveDownload, Loader2 } from 'lucide-vue-next';
 import { isStrmSong } from '@/types';
+import { hasCachedAudioAnyQuality } from '@/offline/media-cache';
 import CoverImage from '@/components/common/CoverImage.vue';
 import { useI18n } from 'vue-i18n';
 import PlaylistModal from '@/components/common/PlaylistModal.vue';
@@ -12,6 +13,13 @@ const playerStore = usePlayerStore();
 const { t } = useI18n();
 const showPlaylist = ref(false);
 const showFullScreen = ref(false);
+const isCurrentCached = ref(false);
+
+const checkCached = async () => {
+  if (!playerStore.currentSong) { isCurrentCached.value = false; return; }
+  isCurrentCached.value = await hasCachedAudioAnyQuality(playerStore.currentSong.id);
+};
+watch(() => playerStore.currentSong?.id, checkCached, { immediate: true });
 
 // 格式化时间函数
 // const formatTime = (seconds: number) => {
@@ -142,8 +150,13 @@ const toggleQuality = () => {
            <span class="text-sm font-medium text-text-primary truncate">{{ playerStore.currentSong.title }}</span>
            <Cloud
              v-if="isStrmSong(playerStore.currentSong)"
-             class="w-6 h-6 flex-shrink-0 text-sky-400"
+             class="w-4 h-4 flex-shrink-0 text-sky-400"
              :title="t('player.strm_badge')"
+           />
+           <HardDriveDownload
+             v-if="isCurrentCached"
+             class="w-4 h-4 flex-shrink-0 text-emerald-400"
+             :title="t('offline.cached_badge')"
            />
          </div>
          <div class="text-xs text-text-secondary truncate">{{ playerStore.currentSong.artist }}</div>

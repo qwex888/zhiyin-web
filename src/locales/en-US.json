@@ -43,7 +43,9 @@
     "cached_badge": "Cached — available offline",
     "storage_usage": "Storage usage",
     "storage_quota": "Storage quota",
-    "cache_limit_warning": "Cache space low — auto-cleaned least recently played tracks"
+    "cache_limit_warning": "Cache space low — auto-cleaned least recently played tracks",
+    "cache_limit_label": "Cache size limit",
+    "cache_limit_hint": "When exceeded, least recently played tracks are auto-evicted. A larger limit allows more songs for offline playback."
   },
   "lyrics": {
     "search_replace": "Search Lyrics",

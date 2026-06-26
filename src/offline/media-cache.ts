@@ -210,12 +210,27 @@ export async function getStorageEstimate(): Promise<StorageEstimate> {
   return { usage: 0, quota: 0, usageRatio: 0 };
 }
 
-const CACHE_USAGE_THRESHOLD = 0.8;
+const DEFAULT_CACHE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
 const LRU_EVICT_BATCH = 5;
+const CACHE_LIMIT_KEY = 'zhiyin-cache-limit';
+
+export function getCacheLimit(): number {
+  const stored = localStorage.getItem(CACHE_LIMIT_KEY);
+  if (stored) {
+    const val = Number(stored);
+    if (val > 0 && isFinite(val)) return val;
+  }
+  return DEFAULT_CACHE_LIMIT_BYTES;
+}
+
+export function setCacheLimit(bytes: number): void {
+  localStorage.setItem(CACHE_LIMIT_KEY, String(Math.max(0, bytes)));
+}
 
 export async function ensureCacheCapacity(): Promise<void> {
-  const est = await getStorageEstimate();
-  if (est.quota === 0 || est.usageRatio < CACHE_USAGE_THRESHOLD) return;
+  const stats = await getMediaCacheStats();
+  const limit = getCacheLimit();
+  if (limit === 0 || stats.estimatedBytes < limit) return;
 
   const { getLruSongIds, removeCacheAccessRecords } = await import('./db');
   const evictIds = await getLruSongIds(LRU_EVICT_BATCH);

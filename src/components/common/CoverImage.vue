@@ -62,7 +62,7 @@ watch(() => props.coverId, (id) => {
     />
 
     <!-- 加载中：音符 SVG 占位 -->
-    <div v-if="state === 'loading'" class="cover-placeholder">
+    <div v-if="state === 'loading'" class="cover-placeholder bg-gradient-to-br">
       <svg class="w-5 h-5 opacity-30" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
       </svg>
@@ -107,5 +107,26 @@ watch(() => props.coverId, (id) => {
   align-items: center;
   justify-content: center;
   color: var(--color-text-tertiary, #71717a);
+}
+
+/* 封面加载动画 */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+.bg-gradient-to-br {
+  background-image: linear-gradient(
+    90deg,
+    rgba(39, 39, 42, 0.5) 0px,
+    rgba(63, 63, 70, 0.5) 40px,
+    rgba(39, 39, 42, 0.5) 80px
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 </style>

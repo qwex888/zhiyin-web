@@ -157,7 +157,7 @@ const formState = reactive({
     skip_small_files: true,
     scan_strm: true,
     strm_mode: 'proxy' as 'proxy' | 'redirect',
-    strm_probe_remote: false,
+    strm_probe_remote: true,
   },
   security: {
     token_expiry_hours: 168,

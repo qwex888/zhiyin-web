@@ -43,7 +43,9 @@
     "cached_badge": "已缓存，可离线播放",
     "storage_usage": "存储用量",
     "storage_quota": "存储配额",
-    "cache_limit_warning": "缓存空间不足，已自动清理最久未播放的曲目"
+    "cache_limit_warning": "缓存空间不足，已自动清理最久未播放的曲目",
+    "cache_limit_label": "缓存空间上限",
+    "cache_limit_hint": "超过上限时将自动清理最久未播放的曲目，设置更大的值可缓存更多歌曲供离线播放。"
   },
   "lyrics": {
     "search_replace": "搜索歌词",

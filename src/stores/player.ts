@@ -181,7 +181,10 @@ export const usePlayerStore = defineStore('player', () => {
             || !song?.codec
             || song.codec == null;
           if (hasMissing) {
-            musicApi.reportMetadata(song.id, { duration_secs: duration.value }).catch(() => {});
+            musicApi.reportMetadata(song.id, { duration_secs: duration.value }).then(() => {
+              songEvents.emitSongUpdated([song.id]);
+              setTimeout(() => songEvents.emitSongUpdated([song.id]), 5000);
+            }).catch(() => {});
           }
         }
       },
@@ -290,6 +293,15 @@ export const usePlayerStore = defineStore('player', () => {
 
   const play = async (song?: Song) => {
     strmRetryCount = 0;
+
+    // 策略二兜底：播放时如果歌曲元数据不完整，非阻塞拉取最新
+    if (song && (!song.duration_secs || !song.bitrate || !song.channels || !song.codec)) {
+      musicApi.getSong(song.id).then(({ data }) => {
+        const idx = queue.value.findIndex(s => s.id === data.id);
+        if (idx >= 0) queue.value[idx] = { ...queue.value[idx], ...data };
+        if (currentSong.value?.id === data.id) currentSong.value = { ...currentSong.value, ...data };
+      }).catch(() => {});
+    }
 
     if (song) {
       const needsInit = currentSong.value?.id !== song.id || !sound;
@@ -418,7 +430,7 @@ export const usePlayerStore = defineStore('player', () => {
         nextIndex = 0;
       }
     } else {
-      // 顺序播放：播放完最后一首后停止
+      // 顺序播放：播放完列表最后一首即停止
       if (nextIndex >= queue.value.length) {
         stopPlayback();
         return;

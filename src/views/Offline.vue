@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import {
@@ -9,15 +9,31 @@ import {
   CloudOff,
   Music2,
   Image,
+  Settings2,
 } from 'lucide-vue-next';
 import { useOfflineStore } from '@/stores/offline';
 import { useToast } from '@/composables/useToast';
 import { useAppConnectivity } from '@/offline/network';
+import { getCacheLimit, setCacheLimit } from '@/offline/media-cache';
 
 const { t } = useI18n();
 const offlineStore = useOfflineStore();
 const toast = useToast();
 const { isOffline } = useAppConnectivity();
+
+const cacheLimitGB = ref(getCacheLimit() / (1024 * 1024 * 1024));
+const cacheLimitOptions = [0.5, 1, 2, 4, 8, 16];
+
+const cacheUsagePercent = computed(() => {
+  const limit = cacheLimitGB.value * 1024 * 1024 * 1024;
+  if (limit <= 0) return 0;
+  return Math.min(100, Math.round((offlineStore.mediaStats.estimatedBytes / limit) * 100));
+});
+
+const handleCacheLimitChange = (val: number) => {
+  cacheLimitGB.value = val;
+  setCacheLimit(val * 1024 * 1024 * 1024);
+};
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -131,6 +147,45 @@ const handleClearMedia = async () => {
           </dd>
         </div>
       </dl>
+
+      <!-- 缓存用量进度条 -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs text-text-secondary">
+          <span>{{ formatBytes(offlineStore.mediaStats.estimatedBytes) }} / {{ cacheLimitGB }} GB</span>
+          <span>{{ cacheUsagePercent }}%</span>
+        </div>
+        <div class="h-2 bg-bg-elevate rounded-full overflow-hidden">
+          <div
+            class="h-full rounded-full transition-all duration-300"
+            :class="cacheUsagePercent > 90 ? 'bg-red-500' : cacheUsagePercent > 70 ? 'bg-amber-500' : 'bg-primary'"
+            :style="{ width: `${cacheUsagePercent}%` }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- 缓存上限配置 -->
+      <div class="space-y-2 pt-2 border-t border-border">
+        <div class="flex items-center gap-2 text-sm text-text-primary">
+          <Settings2 class="w-4 h-4 text-text-secondary" />
+          <span>{{ t('offline.cache_limit_label') }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="opt in cacheLimitOptions"
+            :key="opt"
+            type="button"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
+            :class="cacheLimitGB === opt
+              ? 'bg-primary/10 text-primary border-primary/30'
+              : 'bg-bg-elevate text-text-secondary border-border hover:border-primary/20'"
+            @click="handleCacheLimitChange(opt)"
+          >
+            {{ opt }} GB
+          </button>
+        </div>
+        <p class="text-xs text-text-tertiary">{{ t('offline.cache_limit_hint') }}</p>
+      </div>
+
       <button
         type="button"
         class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-text-secondary hover:text-red-400 text-sm"
