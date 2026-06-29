@@ -33,6 +33,26 @@ const playAll = async () => {
   playerStore.play(songs.value[0]);
 };
 
+const handlePlay = (song: Song) => {
+  playerStore.setQueue(songs.value);
+  playerStore.play(song);
+};
+
+const handleMenuAction = (action: string, song: Song) => {
+  switch (action) {
+    case 'play':
+      handlePlay(song);
+      break;
+    case 'addToQueue':
+      playerStore.addToQueue(song);
+      toast.success(t('common.add_to_queue'));
+      break;
+    case 'viewDetails':
+      router.push(`/songs/${song.id}`);
+      break;
+  }
+};
+
 const fetchArtistDetail = async () => {
   isLoading.value = true;
   const artistId = Number(route.params.id);
@@ -111,6 +131,8 @@ onMounted(() => {
           :is-loading="false"
           :has-error="false"
           :has-more="false"
+          @play="handlePlay"
+          @menu-action="handleMenuAction"
         />
       </div>
     </template>

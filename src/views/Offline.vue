@@ -10,11 +10,22 @@ import {
   Music2,
   Image,
   Settings2,
+  AlertCircle,
+  X,
 } from 'lucide-vue-next';
 import { useOfflineStore } from '@/stores/offline';
 import { useToast } from '@/composables/useToast';
 import { useAppConnectivity } from '@/offline/network';
 import { getCacheLimit, setCacheLimit } from '@/offline/media-cache';
+import {
+  orphanIds,
+  orphanDetected,
+  orphanCheckDone,
+  removeOrphanSong,
+  removeAllOrphans,
+} from '@/offline/orphan-detector';
+import { offlineDb } from '@/offline/db';
+import type { Song } from '@/types';
 
 const { t } = useI18n();
 const offlineStore = useOfflineStore();
@@ -23,6 +34,8 @@ const { isOffline } = useAppConnectivity();
 
 const cacheLimitGB = ref(getCacheLimit() / (1024 * 1024 * 1024));
 const cacheLimitOptions = [0.5, 1, 2, 4, 8, 16];
+
+const orphanSongDetails = ref<Map<number, Song>>(new Map());
 
 const cacheUsagePercent = computed(() => {
   const limit = cacheLimitGB.value * 1024 * 1024 * 1024;
@@ -42,8 +55,22 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
 
-onMounted(() => {
+const loadOrphanDetails = async () => {
+  const ids = Array.from(orphanIds.value);
+  if (ids.length === 0) return;
+  const songs = await offlineDb.songs.bulkGet(ids);
+  const map = new Map<number, Song>();
+  for (const s of songs) {
+    if (s) map.set(s.id, s);
+  }
+  orphanSongDetails.value = map;
+};
+
+onMounted(async () => {
   void offlineStore.refreshMeta();
+  if (orphanCheckDone.value && orphanDetected.value) {
+    await loadOrphanDetails();
+  }
 });
 
 const handleSync = async () => {
@@ -62,6 +89,21 @@ const handleClearMedia = async () => {
   if (!confirm(t('offline.clear_media_confirm'))) return;
   await offlineStore.clearMedia();
   toast.success(t('offline.clear_media_done'));
+};
+
+const handleRemoveOrphan = async (songId: number) => {
+  await removeOrphanSong(songId);
+  orphanSongDetails.value.delete(songId);
+  toast.success(t('offline.orphan_removed'));
+  void offlineStore.refreshMeta();
+};
+
+const handleClearAllOrphans = async () => {
+  if (!confirm(t('offline.orphan_clear_all_confirm'))) return;
+  await removeAllOrphans();
+  orphanSongDetails.value.clear();
+  toast.success(t('offline.orphan_clear_done'));
+  void offlineStore.refreshMeta();
 };
 </script>
 
@@ -195,6 +237,55 @@ const handleClearMedia = async () => {
         {{ t('offline.clear_media') }}
       </button>
       <p class="text-xs text-text-secondary">{{ t('offline.media_hint') }}</p>
+    </section>
+
+    <section
+      v-if="orphanCheckDone && orphanDetected"
+      class="bg-bg-surface border border-amber-500/30 rounded-xl p-5 space-y-4"
+    >
+      <div class="flex items-center gap-2">
+        <AlertCircle class="w-5 h-5 text-amber-400" />
+        <h2 class="font-semibold text-text-primary">{{ t('offline.orphan_section') }} ({{ orphanIds.size }})</h2>
+      </div>
+      <p class="text-xs text-text-secondary">{{ t('offline.orphan_hint') }}</p>
+
+      <div class="space-y-2 max-h-64 overflow-y-auto">
+        <div
+          v-for="songId in orphanIds"
+          :key="songId"
+          class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-bg-elevate"
+        >
+          <div class="min-w-0 flex-1">
+            <div class="text-sm text-text-primary truncate">
+              {{ orphanSongDetails.get(songId)?.title || `#${songId}` }}
+            </div>
+            <div v-if="orphanSongDetails.get(songId)?.artist_name" class="text-xs text-text-secondary truncate">
+              {{ orphanSongDetails.get(songId)?.artist_name }}
+            </div>
+          </div>
+          <button
+            type="button"
+            class="flex-shrink-0 p-1.5 rounded-md text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            :title="t('offline.orphan_remove')"
+            @click="handleRemoveOrphan(songId)"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+        <p v-if="orphanIds.size === 0" class="text-xs text-text-tertiary text-center py-2">
+          {{ t('offline.orphan_empty') }}
+        </p>
+      </div>
+
+      <button
+        v-if="orphanIds.size > 0"
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm"
+        @click="handleClearAllOrphans"
+      >
+        <Trash2 class="w-4 h-4" />
+        {{ t('offline.orphan_clear_all') }}
+      </button>
     </section>
   </div>
 </template>

@@ -60,6 +60,20 @@
 docker pull qwex333/zhiyin-music:latest
 ```
 
+使用 Docker Command 快速启动：
+
+默认推荐挂载数据目录，迁移或删除重建数据不丢失
+
+```bash
+docker run --name zhiyin-music -v /path/to/your/music:/music -v ./data:/data -p 8080:8080 zhiyin-music:latest
+```
+
+如果你只想使用 strm 快速管理音乐库，那么可以试试：
+
+```bash
+docker run --name zhiyin-music -v /path/to/your/music:/music -p 8080:8080 zhiyin-music:latest
+```
+
 使用 Docker Compose 快速启动（示例）：
 
 ```yaml
@@ -79,7 +93,7 @@ services:
       - ./music:/music
       
       # 数据库目录可选（持久化）
-      #- ./data:/data
+      - ./data:/data
       
       # 封面缓存目录(可选， 如果想手动管理封面)
       #- ./covers:/covers

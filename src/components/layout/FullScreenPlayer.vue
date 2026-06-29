@@ -238,36 +238,80 @@ const checkLyricsAvailability = async () => {
   }
 };
 
+const parseTimeTag = (line: string): { time: number; text: string } | null => {
+  const match = line.match(/^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/);
+  if (!match) return null;
+  const min = parseInt(match[1]);
+  const sec = parseInt(match[2]);
+  const msStr = match[3] || '0';
+  const ms = parseInt(msStr);
+  const time = min * 60 + sec + ms / (msStr.length === 3 ? 1000 : 100);
+  const text = match[4].trim();
+  return text ? { time, text } : null;
+};
+
+const parseBilingualInterleaved = (lrcText: string): { time: number; text: string; trans?: string }[] | null => {
+  const lines = lrcText.split('\n');
+  const parsed: { time: number; text: string }[] = [];
+  for (const line of lines) {
+    const p = parseTimeTag(line);
+    if (p) parsed.push(p);
+  }
+  if (parsed.length < 2) return null;
+
+  let dupCount = 0;
+  for (let i = 1; i < parsed.length; i++) {
+    if (Math.abs(parsed[i].time - parsed[i - 1].time) < 0.05 && parsed[i].text !== parsed[i - 1].text) {
+      dupCount++;
+    }
+  }
+  // 至少 30% 的相邻行是同时间戳对，才认为是交替双语格式
+  if (dupCount < parsed.length * 0.15) return null;
+
+  const result: { time: number; text: string; trans?: string }[] = [];
+  let i = 0;
+  while (i < parsed.length) {
+    const current = parsed[i];
+    if (i + 1 < parsed.length && Math.abs(parsed[i + 1].time - current.time) < 0.05 && parsed[i + 1].text !== current.text) {
+      result.push({ time: current.time, text: current.text, trans: parsed[i + 1].text });
+      i += 2;
+    } else {
+      result.push({ time: current.time, text: current.text });
+      i++;
+    }
+  }
+  return result;
+};
+
 const fetchLyrics = async () => {
   lyrics.value = [];
   if (!playerStore.currentSong) return;
   
-  // If we already know there are no lyrics, don't fetch
   if (!hasLyrics.value) return;
 
   try {
     const { data } = await musicApi.getLyrics(playerStore.currentSong.id);
     if (data.has_lyrics && data.lyrics) {
-      // 尝试检测双语歌词：通过时间戳倒退来判断
+      // 策略1：检测同时间戳交替双语格式（后端合并后的新格式）
+      const interleaved = parseBilingualInterleaved(data.lyrics);
+      if (interleaved && interleaved.some(l => l.trans)) {
+        lyrics.value = interleaved;
+        return;
+      }
+
+      // 策略2：兜底检测时间戳倒退（两段拼接格式）
       const lines = data.lyrics.split('\n');
       let splitIndex = -1;
       let prevTime = -1;
       
       for (let i = 0; i < lines.length; i++) {
-        const match = lines[i].match(/^\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/);
-        if (match) {
-          const min = parseInt(match[1]);
-          const sec = parseInt(match[2]);
-          const msStr = match[3] || '0';
-          const ms = parseInt(msStr);
-          const currentTime = min * 60 + sec + ms / (msStr.length === 3 ? 1000 : 100);
-          
-          // 如果时间戳倒退超过30秒，认为是第二部分开始
-          if (prevTime > 0 && currentTime < prevTime - 30) {
+        const p = parseTimeTag(lines[i]);
+        if (p) {
+          if (prevTime > 0 && p.time < prevTime - 30) {
             splitIndex = i;
             break;
           }
-          prevTime = currentTime;
+          prevTime = p.time;
         }
       }
       

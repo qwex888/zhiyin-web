@@ -1,9 +1,8 @@
-
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import {
-  Search, ChevronDown, ChevronUp, Music2, CheckCircle2, Clock, AlertCircle, Play,
+  Search, ChevronDown, ChevronUp, Music2, CheckCircle2, Clock, AlertCircle, Play, Filter,
   Eye, RefreshCw, X, FileText, Tag, Library, Zap, ScrollText, XCircle, Trash2,
 } from 'lucide-vue-next';
 import { scrapeApi } from '@/api/scrape';
@@ -37,6 +36,46 @@ const isLoadingLibrary = ref(false);
 const hasLibraryError = ref(false);
 const selectedSongIds = ref<Set<number>>(new Set());
 const isCreatingScrape = ref(false);
+
+type MetadataFilter = 'all' | 'missing_cover' | 'missing_artist' | 'missing_album' | 'missing_year' | 'missing_genre' | 'missing_duration';
+const activeMetadataFilter = ref<MetadataFilter>('all');
+
+const metadataFilterOptions: { key: MetadataFilter; labelKey: string }[] = [
+  { key: 'all', labelKey: 'scrape.filter_meta_all' },
+  { key: 'missing_cover', labelKey: 'scrape.filter_missing_cover' },
+  { key: 'missing_artist', labelKey: 'scrape.filter_missing_artist' },
+  { key: 'missing_album', labelKey: 'scrape.filter_missing_album' },
+  { key: 'missing_year', labelKey: 'scrape.filter_missing_year' },
+  { key: 'missing_duration', labelKey: 'scrape.filter_missing_duration' },
+];
+
+const filteredLibrarySongs = computed(() => {
+  const songs = librarySongs.value;
+  if (activeMetadataFilter.value === 'all') return songs;
+  return songs.filter(s => {
+    switch (activeMetadataFilter.value) {
+      case 'missing_cover': return !s.cover_id;
+      case 'missing_artist': return !s.artist && !s.artist_name && !s.artist_id;
+      case 'missing_album': return !s.album && !s.album_name && !s.album_id;
+      case 'missing_year': return !s.year;
+      case 'missing_genre': return !s.genre;
+      case 'missing_duration': return !s.duration_secs;
+      default: return true;
+    }
+  });
+});
+
+const filterCounts = computed(() => {
+  const songs = librarySongs.value;
+  return {
+    missing_cover: songs.filter(s => !s.cover_id).length,
+    missing_artist: songs.filter(s => !s.artist && !s.artist_name && !s.artist_id).length,
+    missing_album: songs.filter(s => !s.album && !s.album_name && !s.album_id).length,
+    missing_year: songs.filter(s => !s.year).length,
+    missing_genre: songs.filter(s => !s.genre).length,
+    missing_duration: songs.filter(s => !s.duration_secs).length,
+  } as Record<string, number>;
+});
 
 const fetchAllLibrarySongs = async () => {
   isLoadingLibrary.value = true;
@@ -76,10 +115,11 @@ const toggleSong = (songId: number) => {
 };
 
 const toggleAllSongs = () => {
-  if (selectedSongIds.value.size === librarySongs.value.length) {
+  const filtered = filteredLibrarySongs.value;
+  if (selectedSongIds.value.size === filtered.length) {
     selectedSongIds.value = new Set();
   } else {
-    selectedSongIds.value = new Set(librarySongs.value.map(s => s.id));
+    selectedSongIds.value = new Set(filtered.map(s => s.id));
   }
 };
 
@@ -465,6 +505,11 @@ const getSongDuration = (songId: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+const getSongFilePath = (songId: number) => {
+  const song = songMap.value.get(songId);
+  return song?.file_path || '';
+};
+
 const toggleSession = (sessionId: number) => {
   if (expandedSessionId.value === sessionId) {
     expandedSessionId.value = null;
@@ -759,7 +804,7 @@ onMounted(() => {
       isAutoScraping.value = true;
       startAutoScrapePolling();
     }
-  }).catch(() => {});
+  }).catch(() => { });
 });
 
 onUnmounted(() => {
@@ -769,7 +814,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full p-4 md:p-8 overflow-hidden animate-fade-in">
+  <div class="flex flex-col h-full p-4 pb-0! md:p-8 overflow-hidden animate-fade-in">
     <!-- 页头 -->
     <header class="flex-none mb-6">
       <h1 class="text-2xl md:text-3xl font-bold text-text-primary tracking-tight mb-1 flex items-center gap-3">
@@ -783,37 +828,27 @@ onUnmounted(() => {
 
     <!-- Tab 切换 -->
     <div class="flex-none flex items-center gap-1 mb-5 border-b border-border">
-      <button
-        @click="activeTab = 'library'"
-        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
-        :class="activeTab === 'library'
+      <button @click="activeTab = 'library'"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px" :class="activeTab === 'library'
           ? 'text-primary border-primary'
-          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'"
-      >
+          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'">
         <Library class="w-4 h-4" />
         {{ t('scrape.tab_library') }}
       </button>
-      <button
-        @click="activeTab = 'sessions'"
-        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
-        :class="activeTab === 'sessions'
+      <button @click="activeTab = 'sessions'"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px" :class="activeTab === 'sessions'
           ? 'text-primary border-primary'
-          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'"
-      >
+          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'">
         <Tag class="w-4 h-4" />
         {{ t('scrape.tab_sessions') }}
-        <span
-          v-if="sessions.length > 0"
-          class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
-        >{{ sessions.length }}</span>
+        <span v-if="sessions.length > 0"
+          class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{{ sessions.length
+          }}</span>
       </button>
-      <button
-        @click="activeTab = 'logs'; fetchLogs()"
-        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
-        :class="activeTab === 'logs'
+      <button @click="activeTab = 'logs'; fetchLogs()"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px" :class="activeTab === 'logs'
           ? 'text-primary border-primary'
-          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'"
-      >
+          : 'text-text-secondary border-transparent hover:text-text-primary hover:border-border'">
         <ScrollText class="w-4 h-4" />
         {{ t('scrape.tab_logs') }}
       </button>
@@ -827,42 +862,31 @@ onUnmounted(() => {
           <span class="text-sm text-text-secondary">
             {{ t('scrape.selected_count', { count: selectedSongIds.size }) }}
           </span>
-          <button
-            v-if="selectedSongIds.size > 0"
-            @click="selectedSongIds = new Set()"
-            class="text-xs text-text-tertiary hover:text-text-primary transition-colors"
-          >
+          <button v-if="selectedSongIds.size > 0" @click="selectedSongIds = new Set()"
+            class="text-xs text-text-tertiary hover:text-text-primary transition-colors">
             {{ t('scrape.deselect_all') }}
           </button>
         </div>
         <div class="flex items-center gap-2">
-          <button
-            @click="fetchAllLibrarySongs"
-            class="bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-          >
-            <RefreshCw class="w-4 h-4" />
+          <button @click="fetchAllLibrarySongs" :disabled="isLoadingLibrary"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all" :class="isLoadingLibrary
+              ? 'bg-primary/50 text-white/70 cursor-not-allowed'
+              : 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'">
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoadingLibrary }" />
             {{ t('common.refresh') }}
           </button>
-          <button
-            @click="handleCreateScrape"
-            :disabled="selectedSongIds.size === 0 || isCreatingScrape"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-            :class="selectedSongIds.size > 0 && !isCreatingScrape
+          <button @click="handleCreateScrape" :disabled="selectedSongIds.size === 0 || isCreatingScrape"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all" :class="selectedSongIds.size > 0 && !isCreatingScrape
               ? 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
-              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'"
-          >
+              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'">
             <RefreshCw v-if="isCreatingScrape" class="w-4 h-4 animate-spin" />
             <Search v-else class="w-4 h-4" />
             {{ isCreatingScrape ? t('scrape.creating') : t('scrape.create_scrape') }}
           </button>
-          <button
-            @click="handleAutoScrape"
-            :disabled="selectedSongIds.size === 0 || isAutoScraping"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-            :class="selectedSongIds.size > 0 && !isAutoScraping
+          <button @click="handleAutoScrape" :disabled="selectedSongIds.size === 0 || isAutoScraping"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all" :class="selectedSongIds.size > 0 && !isAutoScraping
               ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'"
-          >
+              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'">
             <RefreshCw v-if="isAutoScraping" class="w-4 h-4 animate-spin" />
             <Zap v-else class="w-4 h-4" />
             {{ isAutoScraping ? t('scrape.auto_scraping') : t('scrape.auto_scrape') }}
@@ -871,25 +895,24 @@ onUnmounted(() => {
       </div>
 
       <!-- 自动刮削进度面板 -->
-      <div
-        v-if="isAutoScraping && autoScrapeProgress"
-        class="flex-none mb-4 bg-bg-surface rounded-2xl border border-amber-500/20 p-4 space-y-3"
-      >
+      <div v-if="isAutoScraping && autoScrapeProgress"
+        class="flex-none mb-4 bg-bg-surface rounded-2xl border border-amber-500/20 p-4 space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Zap class="w-4 h-4 text-amber-500" />
             <span class="text-sm font-medium text-text-primary">{{ t('scrape.auto_scrape') }}</span>
           </div>
           <span class="text-xs text-text-secondary">
-            {{ t('scrape.auto_scrape_progress', { completed: autoScrapeProgress.completed, total: autoScrapeProgress.total }) }}
+            {{ t('scrape.auto_scrape_progress', {
+              completed: autoScrapeProgress.completed, total:
+                autoScrapeProgress.total
+            }) }}
           </span>
         </div>
 
         <div class="w-full h-2 bg-bg-elevate rounded-full overflow-hidden">
-          <div
-            class="h-full bg-amber-500 rounded-full transition-all duration-500"
-            :style="{ width: `${autoScrapePercent}%` }"
-          ></div>
+          <div class="h-full bg-amber-500 rounded-full transition-all duration-500"
+            :style="{ width: `${autoScrapePercent}%` }"></div>
         </div>
 
         <div v-if="autoScrapeProgress.current_song" class="text-xs text-text-secondary truncate">
@@ -898,22 +921,30 @@ onUnmounted(() => {
 
         <div class="flex items-center gap-4 text-xs">
           <span class="text-emerald-500">{{ t('scrape.auto_applied') }}: {{ autoScrapeProgress.auto_applied }}</span>
-          <span class="text-amber-500">{{ t('scrape.needs_review_count') }}: {{ autoScrapeProgress.needs_review }}</span>
+          <span class="text-amber-500">{{ t('scrape.needs_review_count') }}: {{ autoScrapeProgress.needs_review
+          }}</span>
           <span class="text-red-500">{{ t('scrape.failed_count') }}: {{ autoScrapeProgress.failed }}</span>
         </div>
       </div>
 
+      <!-- 元数据筛选 -->
+      <div class="flex-none mb-3 flex flex-wrap items-center gap-2">
+        <Filter class="w-4 h-4 text-text-tertiary flex-shrink-0" />
+        <button v-for="opt in metadataFilterOptions" :key="opt.key"
+          @click="activeMetadataFilter = opt.key; selectedSongIds = new Set()"
+          class="px-3 py-1 rounded-full text-xs font-medium transition-all border" :class="activeMetadataFilter === opt.key
+            ? 'bg-primary text-white border-primary shadow-sm'
+            : 'bg-bg-elevate text-text-secondary border-border hover:border-primary/30 hover:text-text-primary'">
+          {{ t(opt.labelKey) }}
+          <span v-if="filterCounts[opt.key]" class="ml-1 opacity-70">{{ filterCounts[opt.key] }}</span>
+          <span v-else-if="opt.key === 'all'" class="ml-1 opacity-70">{{ librarySongs.length }}</span>
+        </button>
+      </div>
+
       <!-- 可选歌曲列表 -->
       <div class="flex-1 overflow-hidden">
-        <SelectableSongList
-          :songs="librarySongs"
-          :selected-ids="selectedSongIds"
-          :is-loading="isLoadingLibrary"
-          :has-error="hasLibraryError"
-          @retry="retryLibrary"
-          @toggle="toggleSong"
-          @toggle-all="toggleAllSongs"
-        />
+        <SelectableSongList :songs="filteredLibrarySongs" :selected-ids="selectedSongIds" :is-loading="isLoadingLibrary"
+          :has-error="hasLibraryError" @retry="retryLibrary" @toggle="toggleSong" @toggle-all="toggleAllSongs" />
       </div>
     </div>
 
@@ -923,60 +954,38 @@ onUnmounted(() => {
         <!-- 筛选 & 刷新 -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div class="flex flex-wrap gap-2">
-            <button
-              v-for="f in statusFilters"
-              :key="f.value"
-              @click="filterStatus = f.value"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
-              :class="filterStatus === f.value
+            <button v-for="f in statusFilters" :key="f.value" @click="filterStatus = f.value"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border" :class="filterStatus === f.value
                 ? 'bg-primary/10 text-primary border-primary/30'
-                : 'bg-bg-surface text-text-secondary border-border hover:border-primary/20'"
-            >
-              {{ t(f.labelKey) }}{{filterStatus === f.value ? `(${selectableSessions.length})` : '' }}
+                : 'bg-bg-surface text-text-secondary border-border hover:border-primary/20'">
+              {{ t(f.labelKey) }}{{ filterStatus === f.value ? `(${selectableSessions.length})` : '' }}
             </button>
           </div>
-          <button
-            @click="fetchSessions"
-            :disabled="isLoadingSessions"
+          <button @click="fetchSessions" :disabled="isLoadingSessions"
             class="p-2 rounded-lg hover:bg-bg-elevate text-text-secondary hover:text-primary transition-colors"
-            :class="{ 'animate-spin': isLoadingSessions }"
-          >
+            :class="{ 'animate-spin': isLoadingSessions }">
             <RefreshCw class="w-4 h-4" />
           </button>
         </div>
 
         <!-- 批量操作工具栏 -->
-        <div
-          v-if="selectedSessionIds.size > 0"
-          class="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/20"
-        >
+        <div v-if="selectedSessionIds.size > 0"
+          class="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/20">
           <div class="flex items-center gap-3">
-            <input
-              type="checkbox"
-              :checked="isAllSelectableSelected"
-              @change="toggleAllSessionsSelect"
-              class="w-4 h-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer"
-            />
+            <input type="checkbox" :checked="isAllSelectableSelected" @change="toggleAllSessionsSelect"
+              class="w-4 h-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer" />
             <span class="text-sm text-text-primary font-medium">
               {{ t('scrape.selected_sessions_count', { count: selectedSessionIds.size }) }}
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              v-if="selectedHasCancellable"
-              @click="showBatchCancelModal"
-              :disabled="isCancelling"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20"
-            >
+            <button v-if="selectedHasCancellable" @click="showBatchCancelModal" :disabled="isCancelling"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20">
               <XCircle class="w-3.5 h-3.5" />
               {{ t('scrape.batch_cancel') }}
             </button>
-            <button
-              v-if="selectedHasDeletable"
-              @click="showBatchDeleteModal"
-              :disabled="isDeleting"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-zinc-500/10 text-zinc-500 hover:bg-zinc-600 hover:text-white border border-zinc-500/20"
-            >
+            <button v-if="selectedHasDeletable" @click="showBatchDeleteModal" :disabled="isDeleting"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-zinc-500/10 text-zinc-500 hover:bg-zinc-600 hover:text-white border border-zinc-500/20">
               <Trash2 class="w-3.5 h-3.5" />
               {{ t('scrape.batch_delete') }}
             </button>
@@ -994,27 +1003,18 @@ onUnmounted(() => {
             {{ t('common.no_data') }}
           </div>
 
-          <div
-            v-for="session in filteredSessions"
-            :key="session.id"
-            class="bg-bg-surface rounded-2xl border border-border overflow-hidden shadow-sm transition-all hover:border-primary/20"
-          >
+          <div v-for="session in filteredSessions" :key="session.id"
+            class="bg-bg-surface rounded-2xl border border-border overflow-hidden shadow-sm transition-all hover:border-primary/20">
             <!-- Session 行 -->
-            <div
-              class="p-4 flex items-center gap-4 cursor-pointer"
-              @click="toggleSession(session.id)"
-            >
+            <div class="p-4 flex items-center gap-4 cursor-pointer" @click="toggleSession(session.id)">
               <!-- 复选框（可操作状态显示） -->
-              <input
-                v-if="selectableStatuses.has(session.status)"
-                type="checkbox"
-                :checked="selectedSessionIds.has(session.id)"
-                @click.stop="toggleSessionSelect(session.id)"
-                class="w-4 h-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer flex-shrink-0"
-              />
+              <input v-if="selectableStatuses.has(session.status)" type="checkbox"
+                :checked="selectedSessionIds.has(session.id)" @click.stop="toggleSessionSelect(session.id)"
+                class="w-4 h-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer flex-shrink-0" />
               <div v-else class="w-4 flex-shrink-0" />
 
-              <div class="w-8 h-8 rounded-full bg-bg-elevate flex items-center justify-center text-text-secondary flex-shrink-0">
+              <div
+                class="w-8 h-8 rounded-full bg-bg-elevate flex items-center justify-center text-text-secondary flex-shrink-0">
                 <component :is="getStatusIcon(session.status)" class="w-4 h-4" />
               </div>
 
@@ -1032,45 +1032,38 @@ onUnmounted(() => {
                 <div>
                   <span class="text-xs text-text-secondary">时长：{{ getSongDuration(session.song_id) }}</span>
                 </div>
+                <div v-if="getSongFilePath(session.song_id)"
+                  class="text-xs text-text-tertiary mt-0.5 truncate max-w-[400px]"
+                  :title="getSongFilePath(session.song_id)">
+                  {{ getSongFilePath(session.song_id) }}
+                </div>
               </div>
 
-              <span
-                class="text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0"
-                :class="getStatusColor(session.status)"
-              >
+              <span class="text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0"
+                :class="getStatusColor(session.status)">
                 {{ t(`scrape.status_${session.status}`) }}
               </span>
 
               <!-- 单条取消按钮 -->
-              <button
-                v-if="cancellableStatuses.has(session.status)"
-                @click.stop="showCancelModal(session.id)"
+              <button v-if="cancellableStatuses.has(session.status)" @click.stop="showCancelModal(session.id)"
                 class="p-1.5 rounded-lg hover:bg-red-500/10 text-text-tertiary hover:text-red-500 transition-colors flex-shrink-0"
-                :title="t('scrape.cancel')"
-              >
+                :title="t('scrape.cancel')">
                 <XCircle class="w-4 h-4" />
               </button>
               <!-- 单条删除按钮（终态会话） -->
-              <button
-                v-if="deletableStatuses.has(session.status)"
-                @click.stop="showDeleteModal(session.id)"
+              <button v-if="deletableStatuses.has(session.status)" @click.stop="showDeleteModal(session.id)"
                 class="p-1.5 rounded-lg hover:bg-zinc-500/10 text-text-tertiary hover:text-zinc-500 transition-colors flex-shrink-0"
-                :title="t('scrape.delete')"
-              >
+                :title="t('scrape.delete')">
                 <Trash2 class="w-4 h-4" />
               </button>
 
-              <component
-                :is="expandedSessionId === session.id ? ChevronUp : ChevronDown"
-                class="w-4 h-4 text-text-tertiary flex-shrink-0"
-              />
+              <component :is="expandedSessionId === session.id ? ChevronUp : ChevronDown"
+                class="w-4 h-4 text-text-tertiary flex-shrink-0" />
             </div>
 
             <!-- 展开详情 -->
-            <div
-              class="grid transition-all duration-300 ease-in-out"
-              :class="expandedSessionId === session.id ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'"
-            >
+            <div class="grid transition-all duration-300 ease-in-out"
+              :class="expandedSessionId === session.id ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
               <div class="overflow-hidden">
                 <div class="px-4 pb-4 pt-1 border-t border-border space-y-4">
 
@@ -1082,28 +1075,22 @@ onUnmounted(() => {
                     </h4>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_title_label') }}</label>
-                        <input
-                          v-model="searchForm.title"
-                          type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm"
-                        />
+                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_title_label')
+                        }}</label>
+                        <input v-model="searchForm.title" type="text"
+                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
                       </div>
                       <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_artist_label') }}</label>
-                        <input
-                          v-model="searchForm.artist"
-                          type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm"
-                        />
+                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_artist_label')
+                        }}</label>
+                        <input v-model="searchForm.artist" type="text"
+                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
                       </div>
                       <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_album_label') }}</label>
-                        <input
-                          v-model="searchForm.album"
-                          type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm"
-                        />
+                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_album_label')
+                        }}</label>
+                        <input v-model="searchForm.album" type="text"
+                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
                       </div>
                     </div>
 
@@ -1111,56 +1098,76 @@ onUnmounted(() => {
                     <div>
                       <label class="block text-text-secondary text-xs mb-1.5">{{ t('scrape.search_sources') }}</label>
                       <div class="flex flex-wrap gap-2">
-                        <button
-                          v-for="src in allSources"
-                          :key="src.value"
-                          @click="toggleSource(src.value)"
-                          class="px-2.5 py-1 rounded-md text-xs font-medium transition-all border"
-                          :class="searchForm.sources.includes(src.value)
+                        <button v-for="src in allSources" :key="src.value" @click="toggleSource(src.value)"
+                          class="px-2.5 py-1 rounded-md text-xs font-medium transition-all border" :class="searchForm.sources.includes(src.value)
                             ? getSourceColor(src.value)
-                            : 'bg-bg-main text-text-tertiary border-border'"
-                        >
+                            : 'bg-bg-main text-text-tertiary border-border'">
                           {{ t(src.labelKey) }}
                         </button>
                       </div>
                     </div>
+                    <div class="pt-2 border-t border-border flex items-center gap-2">
+                      <button @click="handleSearch" :disabled="isSearching"
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all" :class="!isSearching
+                          ? 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
+                          : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'">
+                        <RefreshCw v-if="isSearching" class="w-4 h-4 animate-spin" />
+                        <Search v-else class="w-4 h-4" />
+                        {{ isSearching ? t('scrape.searching') : t('scrape.search_btn') }}
+                      </button>
 
-                    <button
-                      @click="handleSearch"
-                      :disabled="isSearching"
-                      class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                      :class="!isSearching
-                        ? 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
-                        : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'"
-                    >
-                      <RefreshCw v-if="isSearching" class="w-4 h-4 animate-spin" />
-                      <Search v-else class="w-4 h-4" />
-                      {{ isSearching ? t('scrape.searching') : t('scrape.search_btn') }}
-                    </button>
+
+                      <!-- 确认按钮 -->
+                      <div v-if="session.status === 'needs_review'">
+                        <button v-if="session.has_resolved" @click.stop="handleConfirm(session)"
+                          :disabled="isConfirming"
+                          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                          :class="!isConfirming
+                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                            : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'">
+                          <RefreshCw v-if="isConfirming" class="w-4 h-4 animate-spin" />
+                          <CheckCircle2 v-else class="w-4 h-4" />
+                          {{ isConfirming ? t('scrape.confirming') : t('scrape.confirm_with_data') }}
+                        </button>
+                        <button v-else @click.stop="handleConfirm(session)" :disabled="isConfirming"
+                          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20">
+                          <AlertCircle class="w-4 h-4" />
+                          {{ t('scrape.confirm_with_data') }}
+                        </button>
+                      </div>
+
+                      <!-- 写入中状态 -->
+                      <div v-if="session.status === 'organizing'" class="pt-2 border-t border-border">
+                        <div class="flex items-center gap-2 text-sm text-indigo-500">
+                          <RefreshCw class="w-4 h-4 animate-spin" />
+                          {{ t('scrape.status_organizing') }}
+                        </div>
+                      </div>
+
+                      <!-- 写入失败状态 -->
+                      <div v-if="session.status === 'organize_failed'" class="pt-2 border-t border-border">
+                        <div class="flex items-center gap-2 text-sm text-rose-500">
+                          <XCircle class="w-4 h-4" />
+                          {{ t('scrape.status_organize_failed') }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-
                   <!-- 搜索结果 -->
                   <div v-if="searchResults.length > 0" class="space-y-3">
                     <h4 class="text-sm font-medium text-text-primary">
                       {{ t('scrape.search_results') }}
                       <span class="text-text-tertiary font-normal ml-1">({{ searchResults.length }})</span>
                     </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div
-                        v-for="(candidate, idx) in searchResults"
-                        :key="`${candidate.source}-${candidate.song_id}`"
-                        class="bg-bg-main rounded-xl border border-border p-3 space-y-2 hover:border-primary/20 transition-colors"
-                      >
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3"
+                      :class="{ 'max-h-[348px] overflow-y-auto pr-1': searchResults.length > 3 }">
+                      <div v-for="(candidate, idx) in searchResults" :key="`${candidate.source}-${candidate.song_id}`"
+                        class="bg-bg-main rounded-xl border border-border p-3 space-y-2 hover:border-primary/20 transition-colors">
                         <div class="flex items-start gap-3">
                           <div class="w-12 h-12 rounded-lg bg-bg-elevate overflow-hidden flex-shrink-0">
-                            <img
-                              v-if="candidate.album_img"
-                              :src="candidate.album_img"
-                              :alt="candidate.title"
-                              class="w-full h-full object-cover"
-                              loading="lazy"
-                              @error="($event.target as HTMLImageElement).style.display = 'none'"
-                            />
+                            <img v-if="candidate.album_img" :src="candidate.album_img" :alt="candidate.title"
+                              class="w-full h-full object-cover" loading="lazy"
+                              @error="($event.target as HTMLImageElement).style.display = 'none'" />
                             <div v-else class="w-full h-full flex items-center justify-center text-text-tertiary">
                               <Music2 class="w-5 h-5" />
                             </div>
@@ -1176,57 +1183,48 @@ onUnmounted(() => {
                         </div>
 
                         <div class="flex flex-wrap items-center gap-1.5">
-                          <span
-                            class="text-[10px] font-medium px-1.5 py-0.5 rounded border"
-                            :class="getSourceColor(candidate.source)"
-                          >
+                          <span class="text-[10px] font-medium px-1.5 py-0.5 rounded border"
+                            :class="getSourceColor(candidate.source)">
                             {{ getSourceLabel(candidate.source) }}
                           </span>
-                          <span v-if="candidate.year" class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded">
+                          <span v-if="candidate.year"
+                            class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded">
                             {{ candidate.year }}
                           </span>
-                          <span v-if="candidate.duration_secs" class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded font-mono">
+                          <span v-if="candidate.duration_secs"
+                            class="text-[10px] text-text-tertiary bg-bg-elevate px-1.5 py-0.5 rounded font-mono">
                             {{ formatDuration(candidate.duration_secs) }}
                           </span>
-                          <span
-                            class="text-[10px] px-1.5 py-0.5 rounded"
-                            :class="candidate.lyrics_available
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : 'bg-zinc-500/10 text-zinc-400'"
-                          >
-                            {{ candidate.lyrics_available ? t('scrape.lyrics_available') : t('scrape.lyrics_unavailable') }}
+                          <span class="text-[10px] px-1.5 py-0.5 rounded" :class="candidate.lyrics_available
+                            ? 'bg-emerald-500/10 text-emerald-500'
+                            : 'bg-zinc-500/10 text-zinc-400'">
+                            {{ candidate.lyrics_available ? t('scrape.lyrics_available') :
+                              t('scrape.lyrics_unavailable') }}
                           </span>
                         </div>
 
                         <div class="flex items-center gap-2">
                           <span class="text-[10px] text-text-secondary">{{ t('scrape.candidate_score') }}</span>
                           <div class="flex-1 h-1.5 bg-bg-elevate rounded-full overflow-hidden">
-                            <div
-                              class="h-full rounded-full transition-all duration-500"
+                            <div class="h-full rounded-full transition-all duration-500"
                               :class="candidate.score >= 80 ? 'bg-emerald-500' : candidate.score >= 50 ? 'bg-amber-500' : 'bg-red-500'"
-                              :style="{ width: `${Math.min(candidate.score, 100)}%` }"
-                            ></div>
+                              :style="{ width: `${Math.min(candidate.score, 100)}%` }"></div>
                           </div>
                           <span class="text-[10px] font-mono text-text-primary">{{ candidate.score }}</span>
                         </div>
 
                         <div class="flex gap-2 pt-1">
-                          <button
-                            v-if="candidate.lyrics_available"
+                          <button v-if="candidate.lyrics_available"
                             @click.stop="handlePreviewLyrics(session.id, candidate)"
-                            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-bg-elevate text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors border border-border"
-                          >
+                            class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-bg-elevate text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors border border-border">
                             <Eye class="w-3 h-3" />
                             {{ t('scrape.preview_lyrics') }}
                           </button>
-                          <button
-                            @click.stop="handleApply(session.id, idx)"
-                            :disabled="isApplying === idx"
+                          <button @click.stop="handleApply(session.id, idx)" :disabled="isApplying === idx"
                             class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
                             :class="isApplying !== idx
                               ? 'bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20'
-                              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'"
-                          >
+                              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed border border-border'">
                             <RefreshCw v-if="isApplying === idx" class="w-3 h-3 animate-spin" />
                             <CheckCircle2 v-else class="w-3 h-3" />
                             {{ isApplying === idx ? t('scrape.applying') : t('scrape.apply') }}
@@ -1236,51 +1234,11 @@ onUnmounted(() => {
                     </div>
                   </div>
 
-                  <div v-else-if="!isSearching && expandedSessionId === session.id" class="text-center py-6 text-text-secondary text-xs">
+                  <div v-else-if="!isSearching && expandedSessionId === session.id"
+                    class="text-center py-6 text-text-secondary text-xs">
                     {{ t('scrape.no_results') }}
                   </div>
 
-                  <!-- 确认按钮 -->
-                  <div v-if="session.status === 'needs_review'" class="pt-2 border-t border-border">
-                    <button
-                      v-if="session.has_resolved"
-                      @click.stop="handleConfirm(session)"
-                      :disabled="isConfirming"
-                      class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                      :class="!isConfirming
-                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                        : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'"
-                    >
-                      <RefreshCw v-if="isConfirming" class="w-4 h-4 animate-spin" />
-                      <CheckCircle2 v-else class="w-4 h-4" />
-                      {{ isConfirming ? t('scrape.confirming') : t('scrape.confirm_with_data') }}
-                    </button>
-                    <button
-                      v-else
-                      @click.stop="handleConfirm(session)"
-                      :disabled="isConfirming"
-                      class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
-                    >
-                      <AlertCircle class="w-4 h-4" />
-                      {{ t('scrape.confirm_with_data') }}
-                    </button>
-                  </div>
-
-                  <!-- 写入中状态 -->
-                  <div v-if="session.status === 'organizing'" class="pt-2 border-t border-border">
-                    <div class="flex items-center gap-2 text-sm text-indigo-500">
-                      <RefreshCw class="w-4 h-4 animate-spin" />
-                      {{ t('scrape.status_organizing') }}
-                    </div>
-                  </div>
-
-                  <!-- 写入失败状态 -->
-                  <div v-if="session.status === 'organize_failed'" class="pt-2 border-t border-border">
-                    <div class="flex items-center gap-2 text-sm text-rose-500">
-                      <XCircle class="w-4 h-4" />
-                      {{ t('scrape.status_organize_failed') }}
-                    </div>
-                  </div>
 
                 </div>
               </div>
@@ -1295,15 +1253,10 @@ onUnmounted(() => {
       <div class="max-w-5xl mx-auto space-y-4">
         <!-- 筛选栏 -->
         <div class="flex flex-wrap gap-2">
-          <button
-            v-for="f in logActionFilters"
-            :key="f.value"
-            @click="changeLogsFilter(f.value)"
-            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
-            :class="logsFilterAction === f.value
+          <button v-for="f in logActionFilters" :key="f.value" @click="changeLogsFilter(f.value)"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border" :class="logsFilterAction === f.value
               ? 'bg-primary/10 text-primary border-primary/30'
-              : 'bg-bg-surface text-text-secondary border-border hover:border-primary/20'"
-          >
+              : 'bg-bg-surface text-text-secondary border-border hover:border-primary/20'">
             {{ t(f.labelKey) }}
           </button>
         </div>
@@ -1322,15 +1275,9 @@ onUnmounted(() => {
 
         <!-- 日志列表 -->
         <div v-else class="space-y-2">
-          <div
-            v-for="log in logs"
-            :key="log.id"
-            class="bg-bg-surface rounded-xl border border-border overflow-hidden transition-all hover:border-primary/20"
-          >
-            <div
-              class="p-3 flex items-center gap-3 cursor-pointer"
-              @click="toggleLogDetail(log.session_id)"
-            >
+          <div v-for="log in logs" :key="log.id"
+            class="bg-bg-surface rounded-xl border border-border overflow-hidden transition-all hover:border-primary/20">
+            <div class="p-3 flex items-center gap-3 cursor-pointer" @click="toggleLogDetail(log.session_id)">
               <div class="flex-shrink-0 w-8 h-8 rounded-full bg-bg-elevate flex items-center justify-center">
                 <Zap v-if="log.action.startsWith('auto_')" class="w-3.5 h-3.5 text-amber-500" />
                 <ScrollText v-else class="w-3.5 h-3.5 text-text-secondary" />
@@ -1338,10 +1285,7 @@ onUnmounted(() => {
 
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <span
-                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    :class="getActionColor(log.action)"
-                  >
+                  <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" :class="getActionColor(log.action)">
                     {{ t(`scrape.log_action_${log.action}`, log.action) }}
                   </span>
                   <span v-if="log.session_id" class="text-[10px] text-text-tertiary">
@@ -1369,17 +1313,13 @@ onUnmounted(() => {
                 {{ formatLogTime(log.created_at) }}
               </span>
 
-              <component
-                :is="expandedLogSessionId === log.session_id ? ChevronUp : ChevronDown"
-                class="w-3.5 h-3.5 text-text-tertiary flex-shrink-0"
-              />
+              <component :is="expandedLogSessionId === log.session_id ? ChevronUp : ChevronDown"
+                class="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />
             </div>
 
             <!-- 展开的会话详情 -->
-            <div
-              v-if="log.session_id && expandedLogSessionId === log.session_id"
-              class="border-t border-border px-4 py-3 bg-bg-main space-y-3"
-            >
+            <div v-if="log.session_id && expandedLogSessionId === log.session_id"
+              class="border-t border-border px-4 py-3 bg-bg-main space-y-3">
               <div v-if="isLoadingDetail" class="text-center py-4 text-text-secondary text-sm">
                 <RefreshCw class="w-4 h-4 animate-spin mx-auto mb-1" />
               </div>
@@ -1387,10 +1327,8 @@ onUnmounted(() => {
                 <div class="flex items-center gap-3">
                   <span class="text-xs text-text-secondary">{{ t('scrape.session_id') }}:</span>
                   <span class="text-xs font-mono text-text-primary">#{{ sessionDetail.session.id }}</span>
-                  <span
-                    class="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    :class="getStatusColor(sessionDetail.session.status)"
-                  >
+                  <span class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    :class="getStatusColor(sessionDetail.session.status)">
                     {{ t(`scrape.status_${sessionDetail.session.status}`) }}
                   </span>
                 </div>
@@ -1401,11 +1339,8 @@ onUnmounted(() => {
                 <!-- 已应用结果 -->
                 <div v-if="sessionDetail.resolved.length > 0" class="space-y-1">
                   <h5 class="text-xs font-medium text-text-primary">{{ t('scrape.log_resolved') }}</h5>
-                  <div
-                    v-for="r in sessionDetail.resolved"
-                    :key="r.id"
-                    class="text-[10px] bg-bg-surface rounded-lg px-3 py-2 border border-border"
-                  >
+                  <div v-for="r in sessionDetail.resolved" :key="r.id"
+                    class="text-[10px] bg-bg-surface rounded-lg px-3 py-2 border border-border">
                     <span class="text-emerald-500">{{ r.origin }}</span>
                     <span v-if="r.confidence_label" class="ml-2 text-text-tertiary">{{ r.confidence_label }}</span>
                     <span class="ml-2 text-text-tertiary">{{ formatLogTime(r.created_at) }}</span>
@@ -1415,16 +1350,9 @@ onUnmounted(() => {
                 <!-- 操作历史 -->
                 <div v-if="sessionDetail.logs.length > 0" class="space-y-1">
                   <h5 class="text-xs font-medium text-text-primary">{{ t('scrape.log_timeline') }}</h5>
-                  <div
-                    v-for="sl in sessionDetail.logs"
-                    :key="sl.id"
-                    class="text-[10px] flex items-center gap-2 py-1"
-                  >
+                  <div v-for="sl in sessionDetail.logs" :key="sl.id" class="text-[10px] flex items-center gap-2 py-1">
                     <span class="text-text-tertiary w-32 flex-shrink-0">{{ formatLogTime(sl.created_at) }}</span>
-                    <span
-                      class="px-1.5 py-0.5 rounded-full"
-                      :class="getActionColor(sl.action)"
-                    >
+                    <span class="px-1.5 py-0.5 rounded-full" :class="getActionColor(sl.action)">
                       {{ t(`scrape.log_action_${sl.action}`, sl.action) }}
                     </span>
                   </div>
@@ -1436,27 +1364,19 @@ onUnmounted(() => {
 
         <!-- 分页 -->
         <div v-if="logsTotalPages > 1" class="flex items-center justify-center gap-2 pt-4">
-          <button
-            @click="changeLogsPage(logsPage - 1)"
-            :disabled="logsPage <= 1"
-            class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-            :class="logsPage > 1
+          <button @click="changeLogsPage(logsPage - 1)" :disabled="logsPage <= 1"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" :class="logsPage > 1
               ? 'bg-bg-surface text-text-primary border-border hover:border-primary/30'
-              : 'bg-bg-main text-text-tertiary border-border cursor-not-allowed'"
-          >
+              : 'bg-bg-main text-text-tertiary border-border cursor-not-allowed'">
             {{ t('scrape.log_prev') }}
           </button>
           <span class="text-xs text-text-secondary px-3">
             {{ logsPage }} / {{ logsTotalPages }}
           </span>
-          <button
-            @click="changeLogsPage(logsPage + 1)"
-            :disabled="logsPage >= logsTotalPages"
-            class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-            :class="logsPage < logsTotalPages
+          <button @click="changeLogsPage(logsPage + 1)" :disabled="logsPage >= logsTotalPages"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors" :class="logsPage < logsTotalPages
               ? 'bg-bg-surface text-text-primary border-border hover:border-primary/30'
-              : 'bg-bg-main text-text-tertiary border-border cursor-not-allowed'"
-          >
+              : 'bg-bg-main text-text-tertiary border-border cursor-not-allowed'">
             {{ t('scrape.log_next') }}
           </button>
         </div>
@@ -1466,26 +1386,20 @@ onUnmounted(() => {
     <!-- 歌词预览弹窗 -->
     <Teleport to="body">
       <transition name="fade">
-        <div
-          v-if="showLyricsModal"
-          class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
-          @click="closeLyricsModal"
-        ></div>
+        <div v-if="showLyricsModal" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
+          @click="closeLyricsModal">
+        </div>
       </transition>
       <transition name="slide-up">
-        <div
-          v-if="showLyricsModal"
-          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] md:max-h-[70vh] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
-        >
+        <div v-if="showLyricsModal"
+          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[500px] md:max-h-[70vh] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden">
           <div class="flex items-center justify-between p-4 border-b border-border">
             <div class="flex items-center gap-2 min-w-0">
               <FileText class="w-4 h-4 text-primary flex-shrink-0" />
               <h3 class="font-medium text-text-primary text-sm truncate">{{ lyricsTitle }}</h3>
             </div>
-            <button
-              @click="closeLyricsModal"
-              class="p-1.5 rounded-lg hover:bg-bg-elevate text-text-secondary hover:text-text-primary transition-colors"
-            >
+            <button @click="closeLyricsModal"
+              class="p-1.5 rounded-lg hover:bg-bg-elevate text-text-secondary hover:text-text-primary transition-colors">
               <X class="w-4 h-4" />
             </button>
           </div>
@@ -1498,14 +1412,13 @@ onUnmounted(() => {
             <div v-else-if="!lyricsContent" class="text-center py-12 text-text-secondary text-sm">
               {{ t('scrape.lyrics_empty') }}
             </div>
-            <pre v-else class="text-sm text-text-primary whitespace-pre-wrap leading-relaxed font-sans">{{ lyricsContent }}</pre>
+            <pre v-else class="text-sm text-text-primary whitespace-pre-wrap leading-relaxed font-sans">{{ lyricsContent }}
+        </pre>
           </div>
 
           <div class="p-3 border-t border-border">
-            <button
-              @click="closeLyricsModal"
-              class="w-full py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors"
-            >
+            <button @click="closeLyricsModal"
+              class="w-full py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors">
               {{ t('scrape.close') }}
             </button>
           </div>
@@ -1516,17 +1429,12 @@ onUnmounted(() => {
     <!-- 取消确认弹窗 -->
     <Teleport to="body">
       <transition name="fade">
-        <div
-          v-if="cancelModal.visible"
-          class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
-          @click="closeCancelModal"
-        ></div>
+        <div v-if="cancelModal.visible" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
+          @click="closeCancelModal"></div>
       </transition>
       <transition name="slide-up">
-        <div
-          v-if="cancelModal.visible"
-          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden"
-        >
+        <div v-if="cancelModal.visible"
+          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden">
           <div class="flex items-center gap-3 p-5 border-b border-border">
             <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
               <XCircle class="w-5 h-5 text-red-500" />
@@ -1541,17 +1449,12 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="flex gap-3 p-4">
-            <button
-              @click="closeCancelModal"
-              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors"
-            >
+            <button @click="closeCancelModal"
+              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors">
               {{ t('scrape.close') }}
             </button>
-            <button
-              @click="confirmCancel"
-              :disabled="isCancelling"
-              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-red-500 hover:bg-red-600 text-white"
-            >
+            <button @click="confirmCancel" :disabled="isCancelling"
+              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-red-500 hover:bg-red-600 text-white">
               <RefreshCw v-if="isCancelling" class="w-4 h-4 animate-spin mx-auto" />
               <span v-else>{{ cancelModal.isBatch ? t('scrape.batch_cancel') : t('scrape.cancel') }}</span>
             </button>
@@ -1563,17 +1466,12 @@ onUnmounted(() => {
     <!-- 无候选二次确认弹窗 -->
     <Teleport to="body">
       <transition name="fade">
-        <div
-          v-if="forceConfirmModal.visible"
-          class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
-          @click="closeForceConfirmModal"
-        ></div>
+        <div v-if="forceConfirmModal.visible" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
+          @click="closeForceConfirmModal"></div>
       </transition>
       <transition name="slide-up">
-        <div
-          v-if="forceConfirmModal.visible"
-          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden"
-        >
+        <div v-if="forceConfirmModal.visible"
+          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden">
           <div class="flex items-center gap-3 p-5 border-b border-border">
             <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
               <AlertCircle class="w-5 h-5 text-amber-500" />
@@ -1586,17 +1484,12 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="flex gap-3 p-4">
-            <button
-              @click="closeForceConfirmModal"
-              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors"
-            >
+            <button @click="closeForceConfirmModal"
+              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors">
               {{ t('scrape.close') }}
             </button>
-            <button
-              @click="confirmForce"
-              :disabled="isConfirming"
-              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500 hover:bg-amber-600 text-white"
-            >
+            <button @click="confirmForce" :disabled="isConfirming"
+              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500 hover:bg-amber-600 text-white">
               <RefreshCw v-if="isConfirming" class="w-4 h-4 animate-spin mx-auto" />
               <span v-else>{{ t('scrape.confirm_force') }}</span>
             </button>
@@ -1608,17 +1501,12 @@ onUnmounted(() => {
     <!-- 删除确认弹窗 -->
     <Teleport to="body">
       <transition name="fade">
-        <div
-          v-if="deleteModal.visible"
-          class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
-          @click="closeDeleteModal"
-        ></div>
+        <div v-if="deleteModal.visible" class="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm"
+          @click="closeDeleteModal"></div>
       </transition>
       <transition name="slide-up">
-        <div
-          v-if="deleteModal.visible"
-          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden"
-        >
+        <div v-if="deleteModal.visible"
+          class="fixed inset-x-4 bottom-4 top-auto md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-[111] bg-bg-surface rounded-2xl border border-border shadow-2xl overflow-hidden">
           <div class="flex items-center gap-3 p-5 border-b border-border">
             <div class="w-10 h-10 rounded-full bg-zinc-500/10 flex items-center justify-center flex-shrink-0">
               <Trash2 class="w-5 h-5 text-zinc-500" />
@@ -1633,17 +1521,12 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="flex gap-3 p-4">
-            <button
-              @click="closeDeleteModal"
-              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors"
-            >
+            <button @click="closeDeleteModal"
+              class="flex-1 py-2 rounded-xl text-sm font-medium bg-bg-elevate text-text-primary hover:bg-bg-main transition-colors">
               {{ t('scrape.close') }}
             </button>
-            <button
-              @click="confirmDelete"
-              :disabled="isDeleting"
-              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-zinc-600 hover:bg-zinc-700 text-white"
-            >
+            <button @click="confirmDelete" :disabled="isDeleting"
+              class="flex-1 py-2 rounded-xl text-sm font-medium transition-all bg-zinc-600 hover:bg-zinc-700 text-white">
               <RefreshCw v-if="isDeleting" class="w-4 h-4 animate-spin mx-auto" />
               <span v-else>{{ deleteModal.isBatch ? t('scrape.batch_delete') : t('scrape.delete') }}</span>
             </button>
@@ -1660,14 +1543,22 @@ onUnmounted(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
@@ -1677,6 +1568,7 @@ onUnmounted(() => {
 .slide-up-leave-active {
   transition: all 0.3s ease;
 }
+
 .slide-up-enter-from,
 .slide-up-leave-to {
   opacity: 0;

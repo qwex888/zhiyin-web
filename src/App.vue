@@ -15,6 +15,7 @@ import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { useOfflineStore } from '@/stores/offline';
 import { setBackendReachable } from '@/offline/network';
+import { detectOrphans, orphanDetected, orphanIds } from '@/offline/orphan-detector';
 
 const route = useRoute();
 const toast = useToast();
@@ -52,6 +53,15 @@ const checkHealth = async () => {
     setBackendReachable(true);
     if (authStore.isAuthenticated) {
       void offlineStore.syncLibrary();
+      detectOrphans().then(({ orphan }) => {
+        if (orphan.size > 0) {
+          toast.error(t('offline.orphan_detected', { count: orphan.size }));
+          const removed = playerStore.removeOrphanSongs(orphan);
+          if (removed > 0) {
+            toast.info(t('offline.orphan_queue_cleaned', { count: removed }));
+          }
+        }
+      });
     }
   } catch {
     systemStore.setConnected(false);

@@ -45,7 +45,17 @@
     "storage_quota": "存储配额",
     "cache_limit_warning": "缓存空间不足，已自动清理最久未播放的曲目",
     "cache_limit_label": "缓存空间上限",
-    "cache_limit_hint": "超过上限时将自动清理最久未播放的曲目，设置更大的值可缓存更多歌曲供离线播放。"
+    "cache_limit_hint": "超过上限时将自动清理最久未播放的曲目，设置更大的值可缓存更多歌曲供离线播放。",
+    "orphan_detected": "检测到 {count} 首已缓存歌曲在服务器不存在，可前往离线缓存页管理",
+    "orphan_section": "未同步缓存",
+    "orphan_hint": "以下歌曲的音频文件已缓存在本地，但服务器数据库中已不存在对应记录（可能是数据库重建导致）。",
+    "orphan_clear_all": "清除所有未同步缓存",
+    "orphan_clear_all_confirm": "确定清除所有未同步的缓存歌曲？此操作不可恢复。",
+    "orphan_clear_done": "未同步缓存已清除",
+    "orphan_remove": "删除",
+    "orphan_removed": "已删除该缓存",
+    "orphan_empty": "无未同步的缓存歌曲",
+    "orphan_queue_cleaned": "已从播放列表移除 {count} 首不存在的歌曲"
   },
   "lyrics": {
     "search_replace": "搜索歌词",
@@ -493,7 +503,13 @@
     "batch_delete": "批量删除",
     "batch_delete_confirm": "确定要删除选中的 {count} 个刮削会话？删除后将无法恢复。",
     "batch_delete_success": "已删除 {count} 个会话",
-    "batch_delete_partial": "{count} 个会话删除失败"
+    "batch_delete_partial": "{count} 个会话删除失败",
+    "filter_meta_all": "全部",
+    "filter_missing_cover": "缺失封面",
+    "filter_missing_artist": "缺失艺术家",
+    "filter_missing_album": "缺失专辑",
+    "filter_missing_year": "缺失年份",
+    "filter_missing_duration": "缺失时长"
   },
   "organize": {
     "title": "文件整理",

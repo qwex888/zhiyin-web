@@ -45,7 +45,17 @@
     "storage_quota": "Storage quota",
     "cache_limit_warning": "Cache space low — auto-cleaned least recently played tracks",
     "cache_limit_label": "Cache size limit",
-    "cache_limit_hint": "When exceeded, least recently played tracks are auto-evicted. A larger limit allows more songs for offline playback."
+    "cache_limit_hint": "When exceeded, least recently played tracks are auto-evicted. A larger limit allows more songs for offline playback.",
+    "orphan_detected": "{count} cached song(s) no longer exist on server. Manage in Offline Cache page.",
+    "orphan_section": "Unsynced Cache",
+    "orphan_hint": "These songs have cached audio locally but no longer exist in the server database (possibly due to database rebuild).",
+    "orphan_clear_all": "Clear all unsynced cache",
+    "orphan_clear_all_confirm": "Remove all unsynced cached songs? This cannot be undone.",
+    "orphan_clear_done": "Unsynced cache cleared",
+    "orphan_remove": "Remove",
+    "orphan_removed": "Cache removed",
+    "orphan_empty": "No unsynced cached songs",
+    "orphan_queue_cleaned": "Removed {count} missing song(s) from playlist"
   },
   "lyrics": {
     "search_replace": "Search Lyrics",
@@ -486,7 +496,13 @@
     "batch_delete": "Batch Delete",
     "batch_delete_confirm": "Delete {count} selected scrape sessions? This cannot be undone.",
     "batch_delete_success": "{count} sessions deleted",
-    "batch_delete_partial": "{count} sessions failed to delete"
+    "batch_delete_partial": "{count} sessions failed to delete",
+    "filter_meta_all": "All",
+    "filter_missing_cover": "No Cover",
+    "filter_missing_artist": "No Artist",
+    "filter_missing_album": "No Album",
+    "filter_missing_year": "No Year",
+    "filter_missing_duration": "No Duration"
   },
   "organize": {
     "title": "File Organizer",

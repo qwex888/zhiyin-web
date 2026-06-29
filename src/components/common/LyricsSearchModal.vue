@@ -50,26 +50,59 @@ interface LyricsResult {
 interface LrcLine {
   time: number;
   text: string;
+  trans?: string;
 }
 
 const results = ref<LyricsResult[]>([]);
 
-// 解析 LRC 为带时间戳的行
+const parseTimeTag = (line: string): { time: number; text: string } | null => {
+  const match = line.match(/^\[(\d{2}):(\d{2})(?:[.:：](\d{2,3}))?\](.*)/);
+  if (!match) return null;
+  const min = parseInt(match[1]);
+  const sec = parseInt(match[2]);
+  const msStr = match[3] || '0';
+  const ms = parseInt(msStr);
+  const time = min * 60 + sec + ms / (msStr.length === 3 ? 1000 : 100);
+  const text = match[4].trim();
+  return text ? { time, text } : null;
+};
+
 const parseLrc = (lrc: string | null): LrcLine[] => {
   if (!lrc) return [];
-  return lrc.split(/\r?\n/).map(line => {
-    const match = line.match(/^\[(\d{2}):(\d{2})(?:[.:：](\d{2,3}))?\](.*)/);
-    if (match) {
-      const min = parseInt(match[1]);
-      const sec = parseInt(match[2]);
-      const msStr = match[3] || '0';
-      const ms = parseInt(msStr);
-      const time = min * 60 + sec + ms / (msStr.length === 3 ? 1000 : 100);
-      const text = match[4].trim();
-      if (text) return { time, text };
+
+  const rawLines = lrc.split(/\r?\n/);
+  const parsed: { time: number; text: string }[] = [];
+  for (const line of rawLines) {
+    const p = parseTimeTag(line);
+    if (p) parsed.push(p);
+  }
+  if (parsed.length < 2) return parsed;
+
+  // 检测同时间戳交替双语格式
+  let dupCount = 0;
+  for (let i = 1; i < parsed.length; i++) {
+    if (Math.abs(parsed[i].time - parsed[i - 1].time) < 0.05 && parsed[i].text !== parsed[i - 1].text) {
+      dupCount++;
     }
-    return null;
-  }).filter((item): item is LrcLine => item !== null);
+  }
+
+  if (dupCount >= parsed.length * 0.15) {
+    const result: LrcLine[] = [];
+    let i = 0;
+    while (i < parsed.length) {
+      const current = parsed[i];
+      if (i + 1 < parsed.length && Math.abs(parsed[i + 1].time - current.time) < 0.05 && parsed[i + 1].text !== current.text) {
+        result.push({ time: current.time, text: current.text, trans: parsed[i + 1].text });
+        i += 2;
+      } else {
+        result.push({ time: current.time, text: current.text });
+        i++;
+      }
+    }
+    return result;
+  }
+
+  return parsed;
 };
 
 // 使用 computed 确保响应式正确，避免在 render 期间修改状态
@@ -507,24 +540,33 @@ const sourceColor = (source: string) => {
                       v-for="(line, lineIdx) in getParsedLyrics(index)"
                       :key="lineIdx"
                       :data-line-index="lineIdx"
-                      class="py-1.5 transition-all duration-300 flex items-baseline gap-2"
+                      class="py-1.5 transition-all duration-300 flex items-start gap-2"
                       :class="{
                         'cursor-grabbing': isDragging,
                         'cursor-grab': !isDragging,
                       }"
                     >
                       <span
-                        class="text-[10px] tabular-nums flex-shrink-0 w-10 text-right transition-colors duration-300"
+                        class="text-[10px] tabular-nums flex-shrink-0 w-10 text-right transition-colors duration-300 pt-0.5"
                         :class="index === currentIndex && activeLineIndex === lineIdx
                           ? 'text-primary/70'
                           : 'text-text-tertiary/40'"
                       >{{ formatTimeTag(line.time) }}</span>
-                      <span
-                        class="text-sm leading-relaxed transition-all duration-300"
-                        :class="index === currentIndex && activeLineIndex === lineIdx
-                          ? 'text-primary font-semibold scale-[1.02] origin-left'
-                          : 'text-text-secondary/60'"
-                      >{{ line.text }}</span>
+                      <div class="flex-1 min-w-0">
+                        <span
+                          class="text-sm leading-relaxed transition-all duration-300"
+                          :class="index === currentIndex && activeLineIndex === lineIdx
+                            ? 'text-primary font-semibold scale-[1.02] origin-left'
+                            : 'text-text-secondary/60'"
+                        >{{ line.text }}</span>
+                        <p
+                          v-if="line.trans"
+                          class="text-xs leading-relaxed transition-all duration-300 mt-0.5"
+                          :class="index === currentIndex && activeLineIndex === lineIdx
+                            ? 'text-primary/70'
+                            : 'text-text-tertiary/40'"
+                        >{{ line.trans }}</p>
+                      </div>
                     </div>
                     <!-- 底部留白确保最后几行能滚动到中间 -->
                     <div :style="{ height: lyricsPaddingHeight + 'px' }"></div>

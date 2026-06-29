@@ -359,10 +359,13 @@ onMounted(() => {
         :is-loading="isLoading"
         :has-more="hasMore"
         :has-error="hasError"
+        :enable-navigation="true"
         @loadMore="loadMore"
         @play="playSong"
         @retry="retrySongs"
         @menu-action="handleMenuAction"
+        @navigate-artist="(id) => id && router.push({ name: 'ArtistDetail', params: { id } })"
+        @navigate-album="(id) => id && router.push({ name: 'AlbumDetail', params: { id } })"
       />
     </div>
   </div>

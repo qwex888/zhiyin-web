@@ -54,6 +54,10 @@ export const usePlayerStore = defineStore('player', () => {
   let strmRetryCount = 0;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let activeObjectUrl: string | null = null;
+  let userInitiatedPause = false;
+  let wasUnexpectedlyPaused = false;
+  let listenersAttachedForGen = -1;
+  let playLock = false;
   const toast = useToast();
   const cachingInProgress = new Set<string>();
 
@@ -106,12 +110,19 @@ export const usePlayerStore = defineStore('player', () => {
     finally { cachingInProgress.delete(key); }
   }
 
+  let visibilityHandler: (() => void) | null = null;
+
   const destroySound = () => {
     if (sound) {
       sound.unload();
       sound = null;
     }
+    listenersAttachedForGen = -1;
     stopProgressTimer();
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      visibilityHandler = null;
+    }
   };
 
   const initSound = async (song: Song, resetProgress = true): Promise<number> => {
@@ -169,6 +180,14 @@ export const usePlayerStore = defineStore('player', () => {
       format: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'opus', 'webm', 'weba', 'mp4'],
       volume: volume.value,
       onload: () => {
+        console.log('[Player] onload', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
         if (gen !== soundGeneration) return;
         duration.value = sound?.duration() || 0;
         // STRM 歌曲存在缺失音频属性时，上报浏览器能获取到的数据，后端会异步 ffprobe 补全其余字段
@@ -187,8 +206,22 @@ export const usePlayerStore = defineStore('player', () => {
             }).catch(() => {});
           }
         }
+        console.log('[Player] onload end', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
       },
       onplay: () => {
+        console.log('[Player] onplay', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount,
+        });
         if (gen !== soundGeneration) return;
         isBuffering.value = false;
         isPlaying.value = true;
@@ -197,22 +230,77 @@ export const usePlayerStore = defineStore('player', () => {
         if (needsCache) {
           void bgCache(cacheTargetId, cacheTargetQuality);
         }
-        // 监听 HTML5 audio 的 waiting/playing 事件以检测播放中缓冲
+
+        if (listenersAttachedForGen === gen) return;
+        listenersAttachedForGen = gen;
+
         try {
           const node = (sound as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
-          if (node) {
-            node.onwaiting = () => { if (gen === soundGeneration) isBuffering.value = true; };
-            node.onplaying = () => { if (gen === soundGeneration) isBuffering.value = false; };
+          if (!node) return;
+
+          node.onwaiting = () => { if (gen === soundGeneration) isBuffering.value = true; };
+          node.onplaying = () => {
+            if (gen !== soundGeneration) return;
+            isBuffering.value = false;
+            if (!isPlaying.value) {
+              console.log('[Player] 检测到浏览器自动恢复播放，同步状态');
+              isPlaying.value = true;
+              wasUnexpectedlyPaused = false;
+              startProgressTimer();
+            }
+          };
+
+          node.addEventListener('pause', () => {
+            if (gen !== soundGeneration) return;
+            if (userInitiatedPause) return;
+            if (isPlaying.value) {
+              console.warn('[Player] 检测到意外暂停（可能是音频设备断连）');
+              wasUnexpectedlyPaused = true;
+              isPlaying.value = false;
+              isBuffering.value = false;
+              stopProgressTimer();
+            }
+          });
+
+          if (visibilityHandler) {
+            document.removeEventListener('visibilitychange', visibilityHandler);
           }
+          visibilityHandler = () => {
+            if (!document.hidden && gen === soundGeneration && sound) {
+              const audioNode = (sound as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+              if (audioNode?.paused && isPlaying.value) {
+                console.warn('[Player] visibilitychange: 检测到音频已暂停，同步状态');
+                isPlaying.value = false;
+                stopProgressTimer();
+              }
+            }
+          };
+          document.addEventListener('visibilitychange', visibilityHandler);
         } catch { /* ignore */ }
       },
       onpause: () => {
+        console.log('[Player] onpause', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
         if (gen !== soundGeneration) return;
         isBuffering.value = false;
         isPlaying.value = false;
         stopProgressTimer();
       },
       onend: () => {
+        console.log('[Player] onend', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
         if (gen !== soundGeneration) return;
         isBuffering.value = false;
         isPlaying.value = false;
@@ -220,6 +308,14 @@ export const usePlayerStore = defineStore('player', () => {
         next();
       },
       onloaderror: () => {
+        console.log('[Player] onloaderror', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
         if (gen !== soundGeneration) return;
         if (isStrmSong(song) && progress.value > 0) {
           destroySound();
@@ -253,6 +349,14 @@ export const usePlayerStore = defineStore('player', () => {
         toast.error(msg);
       },
       onplayerror: () => {
+        console.log('[Player] onplayerror', {
+          songId: song?.id,
+          progress: progress.value,
+          isStrm: isStrmSong(song),
+          strmRetryCount: strmRetryCount,
+          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
+          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+        });
         if (gen !== soundGeneration) return;
         if (isStrmSong(song) && progress.value > 0) {
           destroySound();
@@ -292,9 +396,18 @@ export const usePlayerStore = defineStore('player', () => {
   };
 
   const play = async (song?: Song) => {
+    if (playLock) return;
+    playLock = true;
+    try {
+      await _playInternal(song);
+    } finally {
+      playLock = false;
+    }
+  };
+
+  const _playInternal = async (song?: Song) => {
     strmRetryCount = 0;
 
-    // 策略二兜底：播放时如果歌曲元数据不完整，非阻塞拉取最新
     if (song && (!song.duration_secs || !song.bitrate || !song.channels || !song.codec)) {
       musicApi.getSong(song.id).then(({ data }) => {
         const idx = queue.value.findIndex(s => s.id === data.id);
@@ -324,9 +437,40 @@ export const usePlayerStore = defineStore('player', () => {
         await initSound(song);
         if (soundGeneration !== genBefore + 1) return;
       }
+    } else if (currentSong.value && sound) {
+      // 恢复已有实例：先检查 audio element 的真实状态
+      const node = (sound as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+
+      if (node && !node.paused) {
+        // 浏览器已自动恢复播放（如BT重连），只需同步状态
+        console.log('[Player] audio element 已在播放，同步状态');
+        isPlaying.value = true;
+        isBuffering.value = false;
+        wasUnexpectedlyPaused = false;
+        startProgressTimer();
+        return;
+      }
+
+      if (wasUnexpectedlyPaused) {
+        // 设备断连后真正处于暂停状态，需要重新初始化
+        wasUnexpectedlyPaused = false;
+        const savedProgress = progress.value;
+        const isStrm = isStrmSong(currentSong.value);
+        const q = (isStrm ? 'original' : quality.value) as StreamQuality;
+        const isCached = await hasCachedAudio(currentSong.value.id, q);
+        const canSeek = !isStrm || isCached;
+
+        console.log('[Player] 意外暂停后恢复，重新初始化', { savedProgress, canSeek });
+        const genBefore = soundGeneration;
+        await initSound(currentSong.value, !canSeek);
+        if (soundGeneration !== genBefore + 1) return;
+        if (sound && canSeek && savedProgress > 0) {
+          (sound as Howl).seek(savedProgress);
+        }
+      }
     } else if (currentSong.value && !sound) {
+      // 从持久化恢复（页面刷新后）
       const isStrm = isStrmSong(currentSong.value);
-      // STRM 歌曲从持久化恢复时从头播放，避免远程流 seek 失败
       const resetProg = isStrm;
       const savedProgress = isStrm ? 0 : progress.value;
 
@@ -342,8 +486,9 @@ export const usePlayerStore = defineStore('player', () => {
   };
 
   const pause = () => {
+    userInitiatedPause = true;
     sound?.pause();
-    // Force update state if sound is not initialized (e.g. after refresh)
+    userInitiatedPause = false;
     if (!sound) {
       isPlaying.value = false;
     }
@@ -584,6 +729,39 @@ export const usePlayerStore = defineStore('player', () => {
     duration.value = 0;
   };
 
+  const removeOrphanSongs = (orphanIdSet: Set<number>): number => {
+    if (orphanIdSet.size === 0) return 0;
+    const beforeLen = queue.value.length;
+    const currentIsOrphan = currentSong.value && orphanIdSet.has(currentSong.value.id);
+
+    if (currentIsOrphan) {
+      ++soundGeneration;
+      destroySound();
+      revokeObjectUrl();
+      isPlaying.value = false;
+      isBuffering.value = false;
+      progress.value = 0;
+      duration.value = 0;
+      currentSong.value = null;
+    }
+
+    queue.value = queue.value.filter(s => !orphanIdSet.has(s.id));
+    const removed = beforeLen - queue.value.length;
+
+    if (removed > 0) {
+      if (currentSong.value) {
+        currentIndex.value = queue.value.findIndex(s => s.id === currentSong.value!.id);
+      } else if (queue.value.length > 0) {
+        currentIndex.value = 0;
+        currentSong.value = queue.value[0];
+      } else {
+        currentIndex.value = -1;
+      }
+    }
+
+    return removed;
+  };
+
   return {
     currentSong,
     queue,
@@ -605,6 +783,7 @@ export const usePlayerStore = defineStore('player', () => {
     addToQueue,
     setQueue,
     clearQueue,
+    removeOrphanSongs,
     refreshSong,
     refreshSongs
   };

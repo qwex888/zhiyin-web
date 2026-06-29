@@ -36,6 +36,7 @@ const props = withDefaults(defineProps<{
   showIndex?: boolean;
   itemHeight?: number;
   menuActions?: MenuAction[];
+  enableNavigation?: boolean;
 }>(), {
   isLoading: false,
   hasMore: false,
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<{
   showPlayedAt: false,
   showIndex: true,
   itemHeight: 72,
+  enableNavigation: false,
 });
 
 const emit = defineEmits<{
@@ -52,6 +54,8 @@ const emit = defineEmits<{
   (e: 'play', song: Song): void;
   (e: 'retry'): void;
   (e: 'menuAction', action: string, song: Song): void;
+  (e: 'navigateArtist', artistId: number | null | undefined): void;
+  (e: 'navigateAlbum', albumId: number | null | undefined): void;
 }>();
 
 const { songs } = toRefs(props);
@@ -275,12 +279,22 @@ const handlePlay = (song: Song | RecentSong) => {
           </div>
 
           <!-- Artist (第二优先级) -->
-          <div v-if="showArtist" class="hidden md:block text-text-secondary text-sm truncate hover:text-text-primary cursor-pointer hover:underline transition-colors min-w-0">
+          <div
+            v-if="showArtist"
+            class="hidden md:block text-text-secondary text-sm truncate transition-colors min-w-0"
+            :class="enableNavigation ? 'hover:text-text-primary cursor-pointer hover:underline' : ''"
+            @click.stop="enableNavigation && emit('navigateArtist', song.artist_id)"
+          >
             {{ getArtistName(song) }}
           </div>
 
           <!-- Album (可在空间不足时隐藏) -->
-          <div v-if="showAlbum" class="hidden lg:block text-text-secondary text-sm truncate hover:text-text-primary cursor-pointer hover:underline transition-colors min-w-0">
+          <div
+            v-if="showAlbum"
+            class="hidden lg:block text-text-secondary text-sm truncate transition-colors min-w-0"
+            :class="enableNavigation ? 'hover:text-text-primary cursor-pointer hover:underline' : ''"
+            @click.stop="enableNavigation && emit('navigateAlbum', song.album_id)"
+          >
             {{ getAlbumName(song) }}
           </div>
 

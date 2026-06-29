@@ -25,8 +25,19 @@ export const musicApi = {
   getArtist: (id: number) => {
     return api.get<Artist>(`/artists/${id}`);
   },
-  getBatchSongs: (ids: number[]) => {
-    return api.post<Song[]>('/songs/batch', { ids });
+  getBatchSongs: async (ids: number[]) => {
+    const BATCH_LIMIT = 500;
+    if (ids.length <= BATCH_LIMIT) {
+      return api.post<Song[]>('/songs/batch', { ids });
+    }
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH_LIMIT) {
+      chunks.push(ids.slice(i, i + BATCH_LIMIT));
+    }
+    const results = await Promise.all(
+      chunks.map(chunk => api.post<Song[]>('/songs/batch', { ids: chunk }))
+    );
+    return { data: results.flatMap(r => r.data) } as { data: Song[] };
   },
   getRecommendations: () => {
     return api.get<Recommendation[]>('/recommend');
