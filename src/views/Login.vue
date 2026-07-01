@@ -71,6 +71,7 @@ onMounted(async () => {
   }
   try {
     const { data } = await authApi.getStatus();
+    authStore.initialized = data.initialized;
     isSetupMode.value = !data.initialized;
   } catch {
     errorMessage.value = t('auth.status_check_failed');
@@ -107,6 +108,7 @@ const handleSubmit = async () => {
     if (isSetupMode.value) {
       await authApi.setup(form.value.username.trim(), form.value.password);
       successMessage.value = t('auth.setup_success');
+      authStore.initialized = true;
       isSetupMode.value = false;
       form.value.confirmPassword = '';
       try { localStorage.setItem('zhiyin_needs_onboarding', '1'); } catch { /* noop */ }

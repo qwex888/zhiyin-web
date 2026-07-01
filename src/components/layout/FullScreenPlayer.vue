@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch, nextTick } from 'vue';
 import { usePlayerStore } from '@/stores/player';
+import { useAuthStore } from '@/stores/auth';
 import { useI18n } from 'vue-i18n';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, ChevronDown, Music2, ListMusic, Volume2, Mic2, List, Cloud, HardDriveDownload, MoreHorizontal, Info, Share2, Loader2 } from 'lucide-vue-next';
 import { isStrmSong } from '@/types';
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 }>();
 
 const playerStore = usePlayerStore();
+const authStore = useAuthStore();
 const { t } = useI18n();
 
 // Watch for visibility changes to lock body scroll
@@ -475,6 +477,7 @@ const seekToLyric = (time: number) => {
                 @click.stop
               >
                 <button
+                  v-if="authStore.isAdmin"
                   @click="openLyricsSearch"
                   class="flex items-center gap-3 w-full px-4 py-3 text-sm text-text-primary hover:bg-bg-elevate transition-colors"
                 >

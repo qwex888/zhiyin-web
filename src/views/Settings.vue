@@ -25,6 +25,7 @@ const { theme, setTheme } = useTheme();
 const playerStore = usePlayerStore();
 const systemStore = useSystemStore();
 const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.isAdmin);
 const libraryStore = useLibraryStore();
 const offlineStore = useOfflineStore();
 
@@ -426,9 +427,11 @@ const changePassword = async () => {
 };
 
 onMounted(() => {
-  checkHealth();
-  fetchConfig();
-  fetchScanStatus();
+  if (isAdmin.value) {
+    checkHealth();
+    fetchConfig();
+    fetchScanStatus();
+  }
   checkLatestVersion();
 });
 
@@ -761,8 +764,8 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- System Config -->
-      <section v-if="config" class="space-y-6">
+      <!-- System Config (admin only) -->
+      <section v-if="config && isAdmin" class="space-y-6">
         <div class="sticky top-0 z-10 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-2 mb-4 bg-bg-main/95 backdrop-blur-sm border-b border-border">
           <div class="flex items-center justify-between max-w-5xl mx-auto">
             <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
@@ -1112,8 +1115,8 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- System & Library Info -->
-      <section class="space-y-6">
+      <!-- System & Library Info (admin only) -->
+      <section v-if="isAdmin" class="space-y-6">
         <h3 class="text-lg font-semibold text-text-primary border-b border-border pb-2 mb-4 flex items-center gap-2">
            <Monitor class="w-5 h-5 text-text-secondary" />
            {{ t('settings.system') }}
@@ -1235,8 +1238,8 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- Experimental Features -->
-      <section v-if="config" class="space-y-6">
+      <!-- Experimental Features (admin only) -->
+      <section v-if="config && isAdmin" class="space-y-6">
         <div class="flex items-center justify-between border-b border-amber-500/30 pb-2 mb-4">
           <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
             <FlaskConical class="w-5 h-5 text-amber-500" />
@@ -1307,8 +1310,8 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- Sidecar Metadata Settings -->
-      <section v-if="config" class="space-y-6">
+      <!-- Sidecar Metadata Settings (admin only) -->
+      <section v-if="config && isAdmin" class="space-y-6">
         <div class="bg-amber-500/5 rounded-2xl border border-amber-500/20 p-1">
           <div class="bg-bg-surface rounded-xl p-6 space-y-4">
             <div class="flex items-start gap-3 mb-4">
@@ -1350,6 +1353,25 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- Version Changelog -->
+      <section class="space-y-6">
+        <h3 class="text-lg font-semibold text-text-primary border-b border-border pb-2 mb-4 flex items-center gap-2">
+          <ArrowUpCircle class="w-5 h-5 text-primary" />
+          {{ t('changelog.title') }}
+        </h3>
+        <div class="bg-bg-surface rounded-2xl border border-border p-6">
+          <p class="text-sm text-text-secondary mb-4">{{ t('changelog.settings_desc') }}</p>
+          <router-link
+            to="/changelog"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-bg-elevate border border-border text-text-primary hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <ArrowUpCircle class="w-4 h-4" />
+            {{ t('changelog.view_details') }}
+            <ChevronRight class="w-4 h-4 text-text-tertiary" />
+          </router-link>
+        </div>
+      </section>
+
       <!-- GitHub Community -->
       <section class="space-y-6">
         <h3 class="text-lg font-semibold text-text-primary border-b border-border pb-2 mb-4 flex items-center gap-2">
@@ -1374,8 +1396,8 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- Danger Zone -->
-      <section class="space-y-6">
+      <!-- Danger Zone (admin only) -->
+      <section v-if="isAdmin" class="space-y-6">
         <h3 class="text-lg font-semibold text-red-500 border-b border-red-500/20 pb-2 mb-4 flex items-center gap-2">
           <Trash2 class="w-5 h-5" />
           {{ t('settings.danger_zone') }}

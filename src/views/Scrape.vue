@@ -240,6 +240,15 @@ const searchForm = ref({
 });
 const isSearching = ref(false);
 const searchResults = ref<SearchResultItem[]>([]);
+const mobileSearchMetaExpanded = ref<Record<number, boolean>>({});
+
+const isMobileSearchMetaExpanded = (sessionId: number) => mobileSearchMetaExpanded.value[sessionId] ?? false;
+const toggleMobileSearchMeta = (sessionId: number) => {
+  mobileSearchMetaExpanded.value = {
+    ...mobileSearchMetaExpanded.value,
+    [sessionId]: !isMobileSearchMetaExpanded(sessionId),
+  };
+};
 
 const isApplying = ref<number | null>(null);
 const isConfirming = ref(false);
@@ -547,6 +556,12 @@ const handleSearch = async () => {
       sources: searchForm.value.sources.length > 0 ? searchForm.value.sources : undefined,
     });
     searchResults.value = data.candidates;
+    if (expandedSessionId.value) {
+      mobileSearchMetaExpanded.value = {
+        ...mobileSearchMetaExpanded.value,
+        [expandedSessionId.value]: false,
+      };
+    }
     await fetchSessions();
   } catch {
     toast.error(t('common.error'));
@@ -814,9 +829,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full p-4 pb-0! md:p-8 overflow-hidden animate-fade-in">
+  <div class="flex flex-col h-full p-0 md:p-4 overflow-hidden animate-fade-in">
     <!-- 页头 -->
-    <header class="flex-none mb-6">
+    <header class="pt-2 md:pt-0 flex-none mb-6">
       <h1 class="text-2xl md:text-3xl font-bold text-text-primary tracking-tight mb-1 flex items-center gap-3">
         <Search class="w-7 h-7 md:w-8 md:h-8 text-primary" />
         {{ t('scrape.title') }}
@@ -1065,48 +1080,62 @@ onUnmounted(() => {
             <div class="grid transition-all duration-300 ease-in-out"
               :class="expandedSessionId === session.id ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
               <div class="overflow-hidden">
-                <div class="px-4 pb-4 pt-1 border-t border-border space-y-4">
+                <div class="space-y-4">
+                  <!-- 移动端：有搜索结果时折叠搜索元数据栏 -->
+                  <button v-if="searchResults.length > 0 && expandedSessionId === session.id"
+                    @click.stop="toggleMobileSearchMeta(session.id)"
+                    class="md:hidden flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium bg-bg-elevate border border-border text-text-secondary hover:text-primary transition-colors">
+                    <component :is="isMobileSearchMetaExpanded(session.id) ? ChevronUp : ChevronDown" class="w-4 h-4" />
+                    {{ isMobileSearchMetaExpanded(session.id) ? t('scrape.collapse_search_meta') :
+                      t('scrape.expand_search_meta') }}
+                  </button>
 
                   <!-- 搜索表单 -->
-                  <div class="space-y-3">
-                    <h4 class="text-sm font-medium text-text-primary flex items-center gap-1.5">
-                      <Search class="w-3.5 h-3.5" />
-                      {{ t('scrape.search_title') }}
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_title_label')
-                        }}</label>
-                        <input v-model="searchForm.title" type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
-                      </div>
-                      <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_artist_label')
-                        }}</label>
-                        <input v-model="searchForm.artist" type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
-                      </div>
-                      <div>
-                        <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_album_label')
-                        }}</label>
-                        <input v-model="searchForm.album" type="text"
-                          class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
-                      </div>
-                    </div>
+                  <div class="grid transition-all duration-300 ease-in-out md:grid-rows-[1fr] md:opacity-100" :class="searchResults.length > 0 && expandedSessionId === session.id
+                    ? (isMobileSearchMetaExpanded(session.id) ? 'max-md:grid-rows-[1fr] max-md:opacity-100' : 'max-md:grid-rows-[0fr] max-md:opacity-0')
+                    : 'max-md:grid-rows-[1fr] max-md:opacity-100'">
+                    <div class="overflow-hidden space-y-3">
 
-                    <!-- 来源选择 -->
-                    <div>
-                      <label class="block text-text-secondary text-xs mb-1.5">{{ t('scrape.search_sources') }}</label>
-                      <div class="flex flex-wrap gap-2">
-                        <button v-for="src in allSources" :key="src.value" @click="toggleSource(src.value)"
-                          class="px-2.5 py-1 rounded-md text-xs font-medium transition-all border" :class="searchForm.sources.includes(src.value)
-                            ? getSourceColor(src.value)
-                            : 'bg-bg-main text-text-tertiary border-border'">
-                          {{ t(src.labelKey) }}
-                        </button>
+                      <h4 class="text-sm font-medium text-text-primary flex items-center gap-1.5">
+                        <Search class="w-3.5 h-3.5" />
+                        {{ t('scrape.search_title') }}
+                      </h4>
+
+
+
+                      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_title_label')
+                          }}</label>
+                          <input v-model="searchForm.title" type="text"
+                            class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
+                        </div>
+                        <div>
+                          <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_artist_label')
+                          }}</label>
+                          <input v-model="searchForm.artist" type="text"
+                            class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
+                        </div>
+                        <div>
+                          <label class="block text-text-secondary text-xs mb-1">{{ t('scrape.search_album_label')
+                          }}</label>
+                          <input v-model="searchForm.album" type="text"
+                            class="w-full p-2 bg-bg-elevate rounded-lg border border-border text-text-primary focus:border-primary outline-none text-sm" />
+                        </div>
                       </div>
-                    </div>
-                    <div class="pt-2 border-t border-border flex items-center gap-2">
+
+                      <!-- 来源选择 -->
+                      <div>
+                        <label class="block text-text-secondary text-xs mb-1.5">{{ t('scrape.search_sources') }}</label>
+                        <div class="flex flex-wrap gap-2">
+                          <button v-for="src in allSources" :key="src.value" @click="toggleSource(src.value)"
+                            class="px-2.5 py-1 rounded-md text-xs font-medium transition-all border" :class="searchForm.sources.includes(src.value)
+                              ? getSourceColor(src.value)
+                              : 'bg-bg-main text-text-tertiary border-border'">
+                            {{ t(src.labelKey) }}
+                          </button>
+                        </div>
+                      </div>
                       <button @click="handleSearch" :disabled="isSearching"
                         class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all" :class="!isSearching
                           ? 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
@@ -1115,50 +1144,53 @@ onUnmounted(() => {
                         <Search v-else class="w-4 h-4" />
                         {{ isSearching ? t('scrape.searching') : t('scrape.search_btn') }}
                       </button>
-
-
-                      <!-- 确认按钮 -->
-                      <div v-if="session.status === 'needs_review'">
-                        <button v-if="session.has_resolved" @click.stop="handleConfirm(session)"
-                          :disabled="isConfirming"
-                          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                          :class="!isConfirming
-                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                            : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'">
-                          <RefreshCw v-if="isConfirming" class="w-4 h-4 animate-spin" />
-                          <CheckCircle2 v-else class="w-4 h-4" />
-                          {{ isConfirming ? t('scrape.confirming') : t('scrape.confirm_with_data') }}
-                        </button>
-                        <button v-else @click.stop="handleConfirm(session)" :disabled="isConfirming"
-                          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20">
-                          <AlertCircle class="w-4 h-4" />
-                          {{ t('scrape.confirm_with_data') }}
-                        </button>
-                      </div>
-
-                      <!-- 写入中状态 -->
-                      <div v-if="session.status === 'organizing'" class="pt-2 border-t border-border">
-                        <div class="flex items-center gap-2 text-sm text-indigo-500">
-                          <RefreshCw class="w-4 h-4 animate-spin" />
-                          {{ t('scrape.status_organizing') }}
-                        </div>
-                      </div>
-
-                      <!-- 写入失败状态 -->
-                      <div v-if="session.status === 'organize_failed'" class="pt-2 border-t border-border">
-                        <div class="flex items-center gap-2 text-sm text-rose-500">
-                          <XCircle class="w-4 h-4" />
-                          {{ t('scrape.status_organize_failed') }}
-                        </div>
-                      </div>
                     </div>
                   </div>
                   <!-- 搜索结果 -->
                   <div v-if="searchResults.length > 0" class="space-y-3">
-                    <h4 class="text-sm font-medium text-text-primary">
-                      {{ t('scrape.search_results') }}
-                      <span class="text-text-tertiary font-normal ml-1">({{ searchResults.length }})</span>
-                    </h4>
+                    <div class="flex items-center justify-between px-2">
+                      <h4 class="text-sm font-medium text-text-primary">
+                        {{ t('scrape.search_results') }}
+                        <span class="text-text-tertiary font-normal ml-1">({{ searchResults.length }})</span>
+                      </h4>
+                      <div class="flex items-center gap-2">
+
+                        <!-- 确认按钮 -->
+                        <div v-if="session.status === 'needs_review'">
+                          <button v-if="session.has_resolved" @click.stop="handleConfirm(session)"
+                            :disabled="isConfirming"
+                            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+                            :class="!isConfirming
+                              ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                              : 'bg-bg-elevate text-text-tertiary cursor-not-allowed'">
+                            <RefreshCw v-if="isConfirming" class="w-4 h-4 animate-spin" />
+                            <CheckCircle2 v-else class="w-4 h-4" />
+                            {{ isConfirming ? t('scrape.confirming') : t('scrape.confirm_with_data') }}
+                          </button>
+                          <button v-else @click.stop="handleConfirm(session)" :disabled="isConfirming"
+                            class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20">
+                            <AlertCircle class="w-4 h-4" />
+                            {{ t('scrape.confirm_with_data') }}
+                          </button>
+                        </div>
+
+                        <!-- 写入中状态 -->
+                        <div v-if="session.status === 'organizing'" class="pt-2 border-t border-border">
+                          <div class="flex items-center gap-2 text-sm text-indigo-500">
+                            <RefreshCw class="w-4 h-4 animate-spin" />
+                            {{ t('scrape.status_organizing') }}
+                          </div>
+                        </div>
+
+                        <!-- 写入失败状态 -->
+                        <div v-if="session.status === 'organize_failed'" class="pt-2 border-t border-border">
+                          <div class="flex items-center gap-2 text-sm text-rose-500">
+                            <XCircle class="w-4 h-4" />
+                            {{ t('scrape.status_organize_failed') }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3"
                       :class="{ 'max-h-[348px] overflow-y-auto pr-1': searchResults.length > 3 }">
                       <div v-for="(candidate, idx) in searchResults" :key="`${candidate.source}-${candidate.song_id}`"

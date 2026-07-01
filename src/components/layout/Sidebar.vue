@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import GithubIcon from '@/components/common/GithubIcon.vue';
-import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree, HardDrive, Sun, Moon } from 'lucide-vue-next';
+import { Home, Library, Disc, Mic2, History, Settings, ChevronLeft, BarChart2, LogOut, Search, FolderTree, HardDrive, Sun, Moon, Shield } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { computed, ref } from 'vue';
+import { computed, ref, type Component } from 'vue';
+
+type MenuItem = { name: string; path: string; icon: Component; experimental?: boolean };
 import { useAuthStore } from '@/stores/auth';
 import { usePlayerStore } from '@/stores/player';
 import { useAppConnectivity } from '@/offline/network';
@@ -30,16 +32,24 @@ const handleLogout = () => {
 };
 
 // 菜单项配置
-const menuItems = computed(() => [
-  { name: t('nav.home'), path: '/', icon: Home },
-  { name: t('nav.songs'), path: '/songs', icon: Library },
-  { name: t('nav.albums'), path: '/albums', icon: Disc },
-  { name: t('nav.artists'), path: '/artists', icon: Mic2 },
-  { name: t('nav.history'), path: '/history', icon: History },
-  { name: t('nav.stats'), path: '/stats', icon: BarChart2 },
-  { name: t('nav.scrape'), path: '/scrape', icon: Search, experimental: true },
-  { name: t('nav.organize'), path: '/organize', icon: FolderTree, experimental: true },
-]);
+const menuItems = computed((): MenuItem[] => {
+  const items: MenuItem[] = [
+    { name: t('nav.home'), path: '/', icon: Home },
+    { name: t('nav.songs'), path: '/songs', icon: Library },
+    { name: t('nav.albums'), path: '/albums', icon: Disc },
+    { name: t('nav.artists'), path: '/artists', icon: Mic2 },
+    { name: t('nav.history'), path: '/history', icon: History },
+  ];
+  if (authStore.isAdmin) {
+    items.push(
+      { name: t('nav.stats'), path: '/stats', icon: BarChart2 },
+      { name: t('nav.scrape'), path: '/scrape', icon: Search, experimental: true },
+      { name: t('nav.organize'), path: '/organize', icon: FolderTree, experimental: true },
+      { name: t('nav.users'), path: '/users', icon: Shield },
+    );
+  }
+  return items;
+});
 </script>
 
 <template>

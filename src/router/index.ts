@@ -55,6 +55,18 @@ const router = createRouter({
       meta: { onlineOnly: true },
     },
     {
+      path: '/changelog',
+      name: 'Changelog',
+      component: () => import('@/views/Changelog.vue'),
+      meta: { onlineOnly: true },
+    },
+    {
+      path: '/users',
+      name: 'UserManagement',
+      component: () => import('@/views/UserManagement.vue'),
+      meta: { onlineOnly: true, adminOnly: true },
+    },
+    {
       path: '/offline',
       name: 'Offline',
       component: () => import('@/views/Offline.vue'),
@@ -63,19 +75,19 @@ const router = createRouter({
       path: '/stats',
       name: 'Stats',
       component: () => import('@/views/Stats.vue'),
-      meta: { onlineOnly: true },
+      meta: { onlineOnly: true, adminOnly: true },
     },
     {
       path: '/scrape',
       name: 'Scrape',
       component: () => import('@/views/Scrape.vue'),
-      meta: { onlineOnly: true },
+      meta: { onlineOnly: true, adminOnly: true },
     },
     {
       path: '/organize',
       name: 'Organize',
       component: () => import('@/views/Organize.vue'),
-      meta: { onlineOnly: true },
+      meta: { onlineOnly: true, adminOnly: true },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -85,7 +97,7 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
   if (to.meta.public) {
@@ -95,8 +107,21 @@ router.beforeEach((to) => {
     return true;
   }
 
+  if (authStore.initialized === null) {
+    const isInit = await authStore.checkInitStatus();
+    if (!isInit) {
+      return { name: 'Login' };
+    }
+  } else if (!authStore.initialized) {
+    return { name: 'Login' };
+  }
+
   if (!authStore.isAuthenticated) {
     return { name: 'Login' };
+  }
+
+  if (to.meta.adminOnly && !authStore.isAdmin) {
+    return { name: 'Home' };
   }
 
   if (to.meta.onlineOnly && isOfflineMode()) {

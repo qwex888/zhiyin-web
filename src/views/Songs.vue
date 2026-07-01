@@ -240,7 +240,7 @@ onMounted(() => {
 
 <template>
 <div class="h-full" @click="closeMenus">
-  <div class="flex flex-col h-full p-4 md:p-8  overflow-hidden">
+  <div class="flex flex-col h-full p-0 md:p-8  overflow-hidden">
     <!-- Header -->
     <header class="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
       <div class="flex items-center gap-4 md:gap-8">

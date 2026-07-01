@@ -78,10 +78,21 @@ info "已提交版本变更"
 git tag -a "$TAG" -m "Release ${TAG}"
 info "已创建 tag: ${TAG}"
 
+# 生成版本发布数据
+chmod +x scripts/generate-release-data.sh
+./scripts/generate-release-data.sh "$NEW_VERSION"
+mkdir -p releases
+git add package.json releases/ release_notes.md 2>/dev/null || git add package.json release_notes.md
+git commit --amend --no-edit || true
+
 # 推送到远程
 git push origin "$BRANCH"
 git push origin "$TAG"
 info "已推送到远程，GitHub Actions 构建已触发"
+
+if command -v gh &>/dev/null && [ -f release_notes.md ]; then
+  gh release create "$TAG" --title "$TAG" --notes-file release_notes.md || warn "GitHub Release 创建失败"
+fi
 
 echo ""
 echo -e "${GREEN}🎉 发布完成!${NC}"

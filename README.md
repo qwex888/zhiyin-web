@@ -93,7 +93,7 @@ services:
       - ./music:/music
       
       # 数据库目录可选（持久化）
-      #- ./data:/data
+      - ./data:/data
       
       # 封面缓存目录(可选， 如果想手动管理封面)
       #- ./covers:/covers

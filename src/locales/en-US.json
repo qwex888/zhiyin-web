@@ -10,7 +10,8 @@
     "organize": "Organize",
     "settings": "Settings",
     "offline": "Offline",
-    "library": "Library"
+    "library": "Library",
+    "users": "Users"
   },
   "offline": {
     "title": "Offline Mode",
@@ -502,7 +503,9 @@
     "filter_missing_artist": "No Artist",
     "filter_missing_album": "No Album",
     "filter_missing_year": "No Year",
-    "filter_missing_duration": "No Duration"
+    "filter_missing_duration": "No Duration",
+    "expand_search_meta": "Expand search filters",
+    "collapse_search_meta": "Collapse search filters"
   },
   "organize": {
     "title": "File Organizer",
@@ -601,5 +604,43 @@
     "storage_used": "Storage Used",
     "items": "items",
     "total": "Total"
+  },
+  "users": {
+    "title": "User Management",
+    "subtitle": "Manage system users (admin only)",
+    "add_user": "Add User",
+    "username": "Username",
+    "password": "Password",
+    "display_name": "Display Name",
+    "create": "Create",
+    "create_success": "User created",
+    "delete_confirm": "Delete user {name}?",
+    "delete_success": "User deleted",
+    "transfer_admin": "Transfer Admin",
+    "transfer_title": "Transfer Admin Role",
+    "transfer_desc": "Transfer admin to {name}. You will become a regular user and need to log in again.",
+    "transfer_confirm": "Confirm Transfer",
+    "transfer_success": "Admin role transferred",
+    "fields_required": "Username and password are required"
+  },
+  "changelog": {
+    "title": "Changelog",
+    "settings_desc": "View product, frontend and backend release notes",
+    "view_details": "View Changelog",
+    "app_version": "App Version",
+    "loading": "Loading...",
+    "empty": "No release information",
+    "type": {
+      "feature": "Features",
+      "fix": "Fixes",
+      "perf": "Performance",
+      "refactor": "Refactor",
+      "docs": "Docs",
+      "build": "Build",
+      "ci": "CI",
+      "style": "Style",
+      "test": "Tests",
+      "chore": "Chore"
+    }
   }
 }

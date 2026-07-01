@@ -16,6 +16,12 @@ import {
 } from '@/offline/media-cache';
 import { isAppOnline } from '@/offline/network';
 import { songEvents } from '@/utils/songEvents';
+import {
+  attachMediaSessionHandlers,
+  updateMediaSessionMetadata,
+  setMediaSessionPlaybackState,
+  updatePositionState,
+} from '@/composables/useMediaSession';
 
 const swCacheNotifier = new Map<string, () => void>();
 if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
@@ -226,6 +232,8 @@ export const usePlayerStore = defineStore('player', () => {
         isBuffering.value = false;
         isPlaying.value = true;
         strmRetryCount = 0;
+        setMediaSessionPlaybackState(true);
+        updateMediaSessionMetadata(song);
         startProgressTimer();
         if (needsCache) {
           void bgCache(cacheTargetId, cacheTargetQuality);
@@ -290,6 +298,7 @@ export const usePlayerStore = defineStore('player', () => {
         if (gen !== soundGeneration) return;
         isBuffering.value = false;
         isPlaying.value = false;
+        setMediaSessionPlaybackState(false);
         stopProgressTimer();
       },
       onend: () => {
@@ -715,6 +724,34 @@ export const usePlayerStore = defineStore('player', () => {
   };
 
   songEvents.onSongUpdated((ids) => refreshSongs(ids));
+
+  attachMediaSessionHandlers({
+    play: () => { void play(); },
+    pause: () => pause(),
+    next: () => next(),
+    previous: () => prev(),
+    seek: (time: number) => seek(time),
+    getPosition: () => progress.value,
+    getDuration: () => duration.value,
+    onUnexpectedPause: () => {
+      if (!userInitiatedPause && isPlaying.value) {
+        wasUnexpectedlyPaused = true;
+        isPlaying.value = false;
+        isBuffering.value = false;
+        stopProgressTimer();
+        setMediaSessionPlaybackState(false);
+      }
+    },
+  });
+
+  watch(currentSong, (song) => {
+    updateMediaSessionMetadata(song);
+  }, { immediate: true });
+
+  watch(isPlaying, (playing) => {
+    setMediaSessionPlaybackState(playing);
+    if (playing) updatePositionState();
+  });
 
   const clearQueue = () => {
     ++soundGeneration;

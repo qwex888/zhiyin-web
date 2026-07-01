@@ -65,8 +65,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full p-4 md:p-8 overflow-hidden">
-    <header class="flex-none flex items-center justify-between mb-6">
+  <div class="flex flex-col h-full p-0 md:p-8 overflow-hidden">
+    <header class="pt-2 md:pt-0 flex-none flex items-center justify-between mb-6">
       <h1 class="text-3xl font-bold text-text-primary flex items-center gap-3">
         <Calendar class="w-8 h-8 text-primary" />
         {{ t('nav.history') }}

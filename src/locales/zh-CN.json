@@ -10,7 +10,8 @@
     "organize": "文件整理",
     "settings": "设置",
     "offline": "离线缓存",
-    "library": "音乐库"
+    "library": "音乐库",
+    "users": "用户管理"
   },
   "offline": {
     "title": "离线模式",
@@ -509,7 +510,9 @@
     "filter_missing_artist": "缺失艺术家",
     "filter_missing_album": "缺失专辑",
     "filter_missing_year": "缺失年份",
-    "filter_missing_duration": "缺失时长"
+    "filter_missing_duration": "缺失时长",
+    "expand_search_meta": "展开搜索条件",
+    "collapse_search_meta": "收起搜索条件"
   },
   "organize": {
     "title": "文件整理",
@@ -608,5 +611,43 @@
     "storage_used": "已用存储",
     "items": "项",
     "total": "总计"
+  },
+  "users": {
+    "title": "用户管理",
+    "subtitle": "管理系统用户，仅管理员可访问",
+    "add_user": "新增用户",
+    "username": "用户名",
+    "password": "密码",
+    "display_name": "显示名称",
+    "create": "创建",
+    "create_success": "用户创建成功",
+    "delete_confirm": "确定删除用户 {name} 吗？",
+    "delete_success": "用户已删除",
+    "transfer_admin": "转让管理员",
+    "transfer_title": "转让管理员权限",
+    "transfer_desc": "将管理员权限转让给 {name}，您将变为普通用户并需要重新登录",
+    "transfer_confirm": "确认转让",
+    "transfer_success": "管理员权限已转让",
+    "fields_required": "请填写用户名和密码"
+  },
+  "changelog": {
+    "title": "版本日志",
+    "settings_desc": "查看产品、前端与后端的版本更新记录",
+    "view_details": "查看更新日志",
+    "app_version": "产品版本",
+    "loading": "加载中...",
+    "empty": "暂无版本信息",
+    "type": {
+      "feature": "新功能",
+      "fix": "修复",
+      "perf": "性能",
+      "refactor": "重构",
+      "docs": "文档",
+      "build": "构建",
+      "ci": "CI",
+      "style": "样式",
+      "test": "测试",
+      "chore": "杂项"
+    }
   }
 }

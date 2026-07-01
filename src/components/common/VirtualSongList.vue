@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, toRefs, onMounted, watch, nextTick, type Component } from 'vue';
+import { ref, toRefs, onMounted, watch, nextTick, computed, type Component } from 'vue';
 import { useVirtualList, useInfiniteScroll, onClickOutside } from '@vueuse/core';
 import type { Song, RecentSong } from '@/types';
 import { Play, Pause, Clock, MoreHorizontal, Loader2, AlertCircle, RefreshCw, Inbox, ListPlus, Search, Info, HardDriveDownload, Cloud, Mic2 } from 'lucide-vue-next';
@@ -7,6 +7,7 @@ import { isStrmSong } from '@/types';
 import { usePlayerStore } from '@/stores/player';
 import { useLibraryStore } from '@/stores/library';
 import { useI18n } from 'vue-i18n';
+import { useAuthStore } from '@/stores/auth';
 import dayjs from 'dayjs';
 import CoverImage from '@/components/common/CoverImage.vue';
 import { getCachedSongIds } from '@/offline/media-cache';
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<{
   showIndex?: boolean;
   itemHeight?: number;
   menuActions?: MenuAction[];
+  adminOnlyActions?: string[];
   enableNavigation?: boolean;
 }>(), {
   isLoading: false,
@@ -62,6 +64,14 @@ const { songs } = toRefs(props);
 const playerStore = usePlayerStore();
 const libraryStore = useLibraryStore();
 const { t } = useI18n();
+const authStore = useAuthStore();
+
+const effectiveMenuActions = computed(() => {
+  const actions = props.menuActions ?? defaultMenuActions;
+  if (authStore.isAdmin) return actions;
+  const blocked = new Set(props.adminOnlyActions ?? ['scrape', 'searchLyrics']);
+  return actions.filter(a => !blocked.has(a.key));
+});
 
 const cachedIds = ref<Set<number>>(new Set());
 
@@ -109,7 +119,7 @@ const handleMenuAction = (action: string, song: Song | RecentSong) => {
   emit('menuAction', action, song as Song);
 };
 
-const resolvedMenuActions = () => props.menuActions ?? defaultMenuActions;
+const resolvedMenuActions = () => effectiveMenuActions.value;
 
 const { list, containerProps, wrapperProps } = useVirtualList(songs, {
   itemHeight: props.itemHeight,
