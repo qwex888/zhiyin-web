@@ -242,7 +242,7 @@ onMounted(() => {
 <div class="h-full" @click="closeMenus">
   <div class="flex flex-col h-full p-0 md:p-8  overflow-hidden">
     <!-- Header -->
-    <header class="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <header class="pt-2 md:pt-0 flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
       <div class="flex items-center gap-4 md:gap-8">
         <h1 class="text-2xl md:text-3xl font-bold text-text-primary">{{ t('songs.title') }}</h1>
         <button class="text-sm text-primary hover:text-primary-hover transition-colors font-medium whitespace-nowrap" @click="playAllSongs">

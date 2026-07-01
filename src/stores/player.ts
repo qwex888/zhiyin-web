@@ -60,10 +60,17 @@ export const usePlayerStore = defineStore('player', () => {
   let strmRetryCount = 0;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let activeObjectUrl: string | null = null;
-  let userInitiatedPause = false;
+  type PauseSource = 'user' | 'system';
+  let pendingPauseSource: PauseSource | null = null;
   let wasUnexpectedlyPaused = false;
   let listenersAttachedForGen = -1;
   let playLock = false;
+
+  const consumePauseIntent = (): PauseSource | null => {
+    const source = pendingPauseSource;
+    pendingPauseSource = null;
+    return source;
+  };
   const toast = useToast();
   const cachingInProgress = new Set<string>();
 
@@ -251,18 +258,23 @@ export const usePlayerStore = defineStore('player', () => {
             if (gen !== soundGeneration) return;
             isBuffering.value = false;
             if (!isPlaying.value) {
-              console.log('[Player] 检测到浏览器自动恢复播放，同步状态');
+              console.log('[Player] 浏览器自动恢复播放，同步状态');
               isPlaying.value = true;
               wasUnexpectedlyPaused = false;
+              setMediaSessionPlaybackState(true);
               startProgressTimer();
             }
           };
 
           node.addEventListener('pause', () => {
             if (gen !== soundGeneration) return;
-            if (userInitiatedPause) return;
+            const pauseSource = consumePauseIntent();
+            if (pauseSource) {
+              console.log('[Player] 预期暂停 (audio node)', { source: pauseSource });
+              return;
+            }
             if (isPlaying.value) {
-              console.warn('[Player] 检测到意外暂停（可能是音频设备断连）');
+              console.warn('[Player] 意外暂停 (audio node)', { reason: 'device_disconnect_or_system_interrupt' });
               wasUnexpectedlyPaused = true;
               isPlaying.value = false;
               isBuffering.value = false;
@@ -287,13 +299,13 @@ export const usePlayerStore = defineStore('player', () => {
         } catch { /* ignore */ }
       },
       onpause: () => {
+        const pauseSource = gen === soundGeneration ? consumePauseIntent() : null;
         console.log('[Player] onpause', {
           songId: song?.id,
           progress: progress.value,
           isStrm: isStrmSong(song),
-          strmRetryCount: strmRetryCount,
-          STRM_MAX_RETRIES: STRM_MAX_RETRIES,
-          STRM_RETRY_DELAYS: STRM_RETRY_DELAYS,
+          pauseSource: pauseSource ?? 'external',
+          wasUnexpectedlyPaused,
         });
         if (gen !== soundGeneration) return;
         isBuffering.value = false;
@@ -451,17 +463,16 @@ export const usePlayerStore = defineStore('player', () => {
       const node = (sound as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
 
       if (node && !node.paused) {
-        // 浏览器已自动恢复播放（如BT重连），只需同步状态
         console.log('[Player] audio element 已在播放，同步状态');
         isPlaying.value = true;
         isBuffering.value = false;
         wasUnexpectedlyPaused = false;
+        setMediaSessionPlaybackState(true);
         startProgressTimer();
         return;
       }
 
       if (wasUnexpectedlyPaused) {
-        // 设备断连后真正处于暂停状态，需要重新初始化
         wasUnexpectedlyPaused = false;
         const savedProgress = progress.value;
         const isStrm = isStrmSong(currentSong.value);
@@ -469,7 +480,7 @@ export const usePlayerStore = defineStore('player', () => {
         const isCached = await hasCachedAudio(currentSong.value.id, q);
         const canSeek = !isStrm || isCached;
 
-        console.log('[Player] 意外暂停后恢复，重新初始化', { savedProgress, canSeek });
+        console.warn('[Player] 意外暂停后恢复，重新初始化', { savedProgress, canSeek, reason: 'device_disconnect' });
         const genBefore = soundGeneration;
         await initSound(currentSong.value, !canSeek);
         if (soundGeneration !== genBefore + 1) return;
@@ -491,15 +502,23 @@ export const usePlayerStore = defineStore('player', () => {
       }
     }
 
-    if (sound) sound.play();
+    if (sound) {
+      console.log('[Player] sound.play()', {
+        songId: currentSong.value?.id,
+        progress: progress.value,
+        resume: !song,
+      });
+      sound.play();
+    }
   };
 
-  const pause = () => {
-    userInitiatedPause = true;
+  const pause = (source: PauseSource = 'user') => {
+    pendingPauseSource = source;
     sound?.pause();
-    userInitiatedPause = false;
     if (!sound) {
+      pendingPauseSource = null;
       isPlaying.value = false;
+      setMediaSessionPlaybackState(false);
     }
   };
 
@@ -727,21 +746,12 @@ export const usePlayerStore = defineStore('player', () => {
 
   attachMediaSessionHandlers({
     play: () => { void play(); },
-    pause: () => pause(),
+    pause: () => pause('system'),
     next: () => next(),
     previous: () => prev(),
     seek: (time: number) => seek(time),
     getPosition: () => progress.value,
     getDuration: () => duration.value,
-    onUnexpectedPause: () => {
-      if (!userInitiatedPause && isPlaying.value) {
-        wasUnexpectedlyPaused = true;
-        isPlaying.value = false;
-        isBuffering.value = false;
-        stopProgressTimer();
-        setMediaSessionPlaybackState(false);
-      }
-    },
   });
 
   watch(currentSong, (song) => {

@@ -8,12 +8,10 @@ type PlayerCallbacks = {
   seek: (position: number) => void;
   getPosition: () => number;
   getDuration: () => number;
-  onUnexpectedPause?: () => void;
 };
 
 let callbacks: PlayerCallbacks | null = null;
 let positionTimer: ReturnType<typeof setInterval> | null = null;
-let audioListenersAttached = false;
 
 const isMediaSessionSupported = () =>
   typeof navigator !== 'undefined' && 'mediaSession' in navigator;
@@ -105,31 +103,12 @@ export function updatePositionState() {
   } catch { /* noop */ }
 }
 
-/** 绑定 HTMLAudioElement 事件以检测非用户主动的暂停（如蓝牙断开） */
-export function bindAudioElementEvents(audio: HTMLAudioElement) {
-  if (audioListenersAttached) return;
-  audioListenersAttached = true;
-
-  audio.addEventListener('pause', () => {
-    callbacks?.onUnexpectedPause?.();
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && callbacks) {
-      updatePositionState();
-    }
-  });
-
-  window.addEventListener('focus', () => updatePositionState());
-}
-
 export function detachMediaSession() {
   if (positionTimer) {
     clearInterval(positionTimer);
     positionTimer = null;
   }
   callbacks = null;
-  audioListenersAttached = false;
   if (isMediaSessionSupported()) {
     navigator.mediaSession.metadata = null;
     try {
