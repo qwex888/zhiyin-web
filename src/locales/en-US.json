@@ -636,6 +636,7 @@
       "perf": "Performance",
       "refactor": "Refactor",
       "docs": "Docs",
+      "i18n": "Internationalization",
       "build": "Build",
       "ci": "CI",
       "style": "Style",

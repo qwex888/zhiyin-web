@@ -6,6 +6,7 @@ export interface ReleaseChanges {
   perf: string[];
   refactor: string[];
   docs: string[];
+  i18n: string[];
   build: string[];
   ci: string[];
   style: string[];

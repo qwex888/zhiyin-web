@@ -52,45 +52,35 @@ jobs:
         run: tar -czf dist.tar.gz dist
 
       - name: Generate release notes
-        id: release_notes
         run: |
-          # 获取上一个 tag（如果存在）
-          PREV_TAG=$(git tag --sort=-version:refname | sed -n '2p')
-          CURRENT_TAG="${{ steps.tag.outputs.ref }}"
+          TAG="${{ steps.tag.outputs.ref }}"
+          VERSION="${TAG#v}"
+          chmod +x scripts/generate-release-data.sh
 
-          if [ -z "$PREV_TAG" ]; then
-            # 第一个 tag，获取所有 commit
-            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+          if [ -f release_notes.md ]; then
+            echo "使用 tag 中的 release_notes.md"
           else
-            # 获取两个 tag 之间的 commit
-            COMMITS=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..${CURRENT_TAG})
+            ./scripts/generate-release-data.sh "$VERSION"
           fi
 
-          # 写入多行内容到 GITHUB_OUTPUT
-          {
-            echo "notes<<EOF"
-            echo "## What's Changed"
-            echo ""
-            echo "$COMMITS"
-            echo ""
-            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG:-}...${CURRENT_TAG}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          if [ ! -f release_notes.md ]; then
+            echo "release_notes.md 不存在" >&2
+            exit 1
+          fi
 
       - name: Create or update Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.tag.outputs.ref }}"
-          NOTES="${{ steps.release_notes.outputs.notes }}"
 
           # 本地 release.sh 可能已创建空 Release；此处幂等上传 dist.tar.gz
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG 已存在，上传/更新 dist.tar.gz..."
             gh release upload "$TAG" dist.tar.gz --clobber
-            gh release edit "$TAG" --title "Release $TAG" --notes "$NOTES"
+            gh release edit "$TAG" --title "Release $TAG" --notes-file release_notes.md
           else
             gh release create "$TAG" dist.tar.gz \
               --title "Release $TAG" \
-              --notes "$NOTES"
+              --notes-file release_notes.md
           fi

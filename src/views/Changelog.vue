@@ -11,7 +11,7 @@ const modules = ref<ReleaseModule[]>([]);
 const isLoading = ref(false);
 
 const changeTypeKeys = [
-  'feature', 'fix', 'perf', 'refactor', 'docs', 'build', 'ci', 'style', 'test', 'chore',
+  'feature', 'fix', 'perf', 'refactor', 'docs', 'i18n', 'build', 'ci', 'style', 'test', 'chore',
 ] as const;
 
 const typeColors: Record<string, string> = {
@@ -20,6 +20,7 @@ const typeColors: Record<string, string> = {
   perf: 'bg-blue-500/10 text-blue-600',
   refactor: 'bg-violet-500/10 text-violet-600',
   docs: 'bg-zinc-500/10 text-zinc-600',
+  i18n: 'bg-teal-500/10 text-teal-600',
   build: 'bg-amber-500/10 text-amber-600',
   ci: 'bg-cyan-500/10 text-cyan-600',
   style: 'bg-pink-500/10 text-pink-600',
